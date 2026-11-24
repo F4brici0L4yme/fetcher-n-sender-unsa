@@ -3,6 +3,8 @@
 **Rama** `feat/aula-sender`  
 **Archivos a tu cargo** `src/adapters/sender/`, incluidas sus pruebas y fixtures.
 
+Aplica la [guía de programación para agentes](../../AGENTS.md) durante toda la implementación.
+
 ## Qué entregas
 
 Un adaptador para que el agente visual adjunte el PDF autorizado a la actividad correcta y verifique la entrega en Aula Virtual. Usa el navegador integrado acordado con el responsable 02. El sistema inicia la operación a partir de la autorización del estudiante en el panel.

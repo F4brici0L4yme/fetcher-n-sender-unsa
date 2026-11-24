@@ -3,6 +3,8 @@
 **Rama** `feat/web-panel`  
 **Archivos a tu cargo** `src/adapters/web/`, incluidas sus pruebas.
 
+Aplica la [guía de programación para agentes](../../AGENTS.md) durante toda la implementación.
+
 ## Qué entregas
 
 Un panel web local para **Buscar tareas**, abrir una tarea, cargar el PDF terminado y **Entregar**. Las vistas muestran curso, título, plazo, destino, nombre del PDF y estado del trabajo. Las tareas sin fecha aparecen en su propia sección después de las próximas. Los estados visibles incluyen búsqueda en curso, PDF cargado, entrega confirmada, error y por verificar.

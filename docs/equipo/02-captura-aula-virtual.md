@@ -3,6 +3,8 @@
 **Rama** `feat/aula-fetcher`  
 **Archivos a tu cargo** `src/adapters/fetcher/`, incluidas sus pruebas y fixtures.
 
+Aplica la [guía de programación para agentes](../../AGENTS.md) durante toda la implementación.
+
 ## Qué entregas
 
 El estudiante pulsa **Buscar tareas** y el worker inicia una sesión del agente con el navegador integrado. El agente ve la pantalla, navega con el mouse, consulta la lista de tareas de Aula Virtual y devuelve sus datos a la aplicación. La persistencia queda a cargo del caso de uso del núcleo.

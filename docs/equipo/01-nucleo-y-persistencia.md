@@ -3,6 +3,8 @@
 **Rama** `feat/core-persistence`  
 **Archivos a tu cargo** `src/core/`, `src/adapters/persistence/`, `src/bootstrap/` y configuración raíz.
 
+Aplica la [guía de programación para agentes](../../AGENTS.md) durante toda la implementación.
+
 ## Flujo del piloto
 
 1. El estudiante pulsa **Buscar tareas**. Un agente visual examina Aula Virtual y la aplicación guarda las tareas próximas en PostgreSQL.

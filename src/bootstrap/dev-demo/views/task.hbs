@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{title}} · Demo Aula Virtual</title></head>
+<body>
+  <main>
+    <a href="/__demo">Volver a tareas</a>
+    <h1>{{title}}</h1>
+    <p>Entorno de prueba. La entrega es simulada.</p>
+    <p>{{course}} · {{#if deadline}}{{deadline}}{{else}}Sin fecha{{/if}}</p>
+    <p>Actividad de destino: {{activityUrl}}</p>
+    <form method="post" action="/__demo/tasks/{{taskId}}/pdf" enctype="multipart/form-data">
+      <label>PDF terminado <input type="file" name="pdf" accept="application/pdf" required></label>
+      <button>Cargar PDF</button>
+    </form>
+    {{#if currentPdf}}<p>PDF vigente: {{currentPdf.originalName}}</p>{{/if}}
+    {{#if canDeliver}}
+      <form method="post" action="/__demo/tasks/{{taskId}}/deliver">
+        <input type="hidden" name="pdfId" value="{{currentPdf.pdfId}}">
+        <button>Autorizar y entregar {{currentPdf.originalName}}</button>
+      </form>
+    {{/if}}
+    {{#if delivery}}
+      <p role="status">{{delivery.label}}</p>
+      {{#if delivery.evidence.fileName}}<p>PDF de este intento: {{delivery.evidence.fileName}}</p>{{/if}}
+      {{#if delivery.refreshing}}<script>setTimeout(() => location.reload(), 700);</script>{{/if}}
+    {{/if}}
+    {{#if uncertain}}
+      <form method="post" action="/__demo/tasks/{{taskId}}/verify"><button>Volver a verificar</button></form>
+    {{/if}}
+  </main>
+</body>
+</html>

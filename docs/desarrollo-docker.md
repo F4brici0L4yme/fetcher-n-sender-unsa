@@ -13,18 +13,22 @@ Compose arranca un contenedor de desarrollo con Node.js y npm y un contenedor co
 
 ## Programar y probar
 
-El contenedor `app` queda listo para ejecutar comandos. Cuando el commit base incluya `package.json` y `package-lock.json`, usa:
+El contenedor `app` queda listo para ejecutar los comandos del proyecto:
 
 ```bash
 docker compose exec app npm ci
+docker compose exec app npm run db:migrate
 docker compose exec app npm run build
 docker compose exec app npm test
-docker compose exec app npm run start:dev
+docker compose exec app npm run test:integration
+docker compose exec -e DEMO_MODE=true app npm run start:dev
 ```
 
-Repite `npm ci` dentro del contenedor cuando cambie el lockfile. El responsable del commit base debe versionar `package-lock.json` y definir `build`, `test` y `start:dev`. Para abrir una terminal de trabajo, usa `docker compose exec app sh`.
+Repite `npm ci` dentro del contenedor cuando cambie el lockfile. La suite de integración usa su propia base de datos temporal. Para abrir una terminal de trabajo, usa `docker compose exec app sh`.
 
-La aplicación lee `DATABASE_URL` para conectarse a `db:5432`, `UPLOAD_DIR` para guardar los PDF y `HOST` y `PORT` para escuchar en `0.0.0.0:3000` dentro del contenedor. Al iniciar NestJS, el panel queda disponible en `http://127.0.0.1:3000` desde el equipo. Si ese puerto está ocupado, arranca Compose con `APP_PORT=3001 docker compose up -d --build --wait` y abre el puerto 3001.
+Abre [la pantalla de prueba](http://127.0.0.1:3000/__demo). Pulsa **Buscar tareas** dos veces y comprueba que aparece una sola **Práctica de prueba**. Ábrela, carga un PDF y pulsa **Autorizar y entregar**. La pantalla debe mostrar **Entrega simulada confirmada**. El simulador usa una cuenta separada y una actividad ficticia.
+
+La aplicación lee `DATABASE_URL` para conectarse a `db:5432`, `UPLOAD_DIR` para guardar los PDF y `HOST` y `PORT` para escuchar en `0.0.0.0:3000` dentro del contenedor. Si el puerto del equipo está ocupado, arranca Compose con `APP_PORT=3001 docker compose up -d --build --wait` y abre `http://127.0.0.1:3001/__demo`. La pantalla solo se monta con `NODE_ENV=development` y `DEMO_MODE=true`.
 
 ## Detener el entorno
 

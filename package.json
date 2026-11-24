@@ -1,0 +1,35 @@
+{
+  "name": "fetcher-n-sender-unsa",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "24.22.3",
+    "npm": "11.19.1"
+  },
+  "scripts": {
+    "build": "nest build",
+    "test": "npm run build && node --test \"dist/**/*.test.js\"",
+    "test:integration": "npm run build && node --test \"dist/**/*.integration.js\"",
+    "db:migrate": "drizzle-kit migrate",
+    "start:dev": "nest start --watch"
+  },
+  "dependencies": {
+    "@nestjs/common": "11.2.11",
+    "@nestjs/core": "11.2.11",
+    "@nestjs/platform-express": "11.2.11",
+    "drizzle-orm": "0.45.4",
+    "express-handlebars": "9.0.6",
+    "pg": "8.23.1",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "11.0.24",
+    "@types/express": "5.0.6",
+    "@types/multer": "2.3.0",
+    "@types/node": "24.19.2",
+    "@types/pg": "8.23.1",
+    "drizzle-kit": "0.31.11",
+    "typescript": "5.9.3"
+  }
+}

@@ -34,6 +34,12 @@ Los tipos del dominio viven en `src/core/domain/`. Las interfaces de entrada y s
 
 La orden de entrega contiene `jobId`, `accountId`, `externalId`, `activityUrl`, `pdfId`, `originalName` y `sha256`. Al ejecutar el puerto, el worker añade `localFilePath`, una ruta controlada por la aplicación. El resultado del sender usa `confirmed`, `failed` o `needs_verification`. La evidencia mínima es la URL de actividad, el estado visible y la referencia del portal si aparece. Acepta `confirmed` solo con evidencia atribuible al intento.
 
+## Puntos de conexión para el equipo
+
+- **02 y 04.** Implementen los puertos de `src/core/application/ports/academic.ts`. El ensamblaje usa `ASSIGNMENT_FETCHER` y `ASSIGNMENT_SENDER`. Para confirmar un envío, devuelvan como evidencia la URL canónica de la actividad, el estado visible y el nombre del PDF que muestra el portal. Si falta evidencia, devuelvan `needs_verification`.
+- **03.** Importa `CoreModule` desde `src/bootstrap/core.module.ts` e inyecta las clases de `src/core/application/tasks.ts` y el token `ACCOUNT_ID`. El núcleo expone `VerificarEntrega` para solicitar una nueva comprobación de solo lectura de un resultado incierto. El entorno de prueba usa el prefijo `/__demo` y deja libres las rutas de la guía 03.
+- **Todos.** La [guía Docker](../desarrollo-docker.md) tiene los comandos, las pruebas y el recorrido simulado para verificar la base desde un clon limpio.
+
 ## Implementación de tu rama
 
 - Implementa repositorios para tareas, PDF y trabajos. Usa una restricción única por cuenta e identificador externo. Guarda fechas con hora como instantes y conserva las fechas sin hora. Para el filtro de próximos, usa la hora actual para instantes y el día local en `America/Lima` para fechas sin hora.

@@ -30,6 +30,6 @@ Un panel web local para **Buscar tareas**, abrir una tarea, cargar el PDF termin
 
 Prueba con casos de uso simulados el recorrido de búsqueda, carga y autorización. Cubre un PDF inválido, tarea sin fecha, destino no admitido, archivo desactualizado, doble clic y entrega por verificar. La autorización debe enviar al caso de uso el `pdfId` que la vista presentó.
 
-Ejecuta `npm run build` y `npm test`. Indica al responsable 01 qué módulo exportas y qué dependencias inyecta. Mantén cambios de configuración raíz y ensamblaje en su rama.
+Ejecuta `docker compose exec app npm run build` y `docker compose exec app npm test`. Indica al responsable 01 qué módulo exportas y qué dependencias inyecta. Mantén cambios de configuración raíz y ensamblaje en su rama.
 
 [NestJS MVC](https://docs.nestjs.com/techniques/mvc)

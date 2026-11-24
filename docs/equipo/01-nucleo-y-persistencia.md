@@ -15,7 +15,7 @@ El piloto es local, monousuario y opera en Aula Virtual. Las búsquedas se inici
 
 ## Base común antes de repartir las ramas
 
-Prepara el primer commit de `main` con Node.js, TypeScript estricto, NestJS, Express, Handlebars, Drizzle y PostgreSQL. Incluye los tipos y puertos de abajo, los tokens de inyección de Nest, casos de uso y adaptadores simulados para que cada compañero pueda ejecutar su parte. Expón scripts raíz `npm run build` y `npm test`. Comparte el SHA de esa base con los cuatro compañeros. Cada rama empieza en ese commit. Los cambios a contratos o dependencias raíz se coordinan contigo y entran primero en un PR pequeño.
+Prepara en `main` el commit base de la aplicación con Node.js, TypeScript estricto, NestJS, Express, Handlebars, Drizzle y PostgreSQL. Incluye los tipos y puertos de abajo, los tokens de inyección de Nest, casos de uso y adaptadores simulados para que cada compañero pueda ejecutar su parte. Usa el [entorno Docker del equipo](../desarrollo-docker.md), versiona `package-lock.json` y define los scripts `build`, `test` y `start:dev`. Comparte el SHA de esa base con los cuatro compañeros. Cada rama empieza en ese commit. Los cambios a contratos o dependencias raíz se coordinan contigo y entran primero en un PR pequeño.
 
 ## Contratos compartidos
 

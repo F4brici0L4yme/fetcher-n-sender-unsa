@@ -1,0 +1,40 @@
+services:
+  app:
+    build: .
+    init: true
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: 3000
+      TZ: America/Lima
+      DATABASE_URL: postgresql://fetcher:${POSTGRES_PASSWORD:-fetcher_dev}@db:5432/fetcher
+      UPLOAD_DIR: /data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    volumes:
+      - .:/workspace
+      - node_modules:/workspace/node_modules
+      - uploads:/data
+
+  db:
+    image: postgres:18.7-bookworm
+    environment:
+      POSTGRES_DB: fetcher
+      POSTGRES_USER: fetcher
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fetcher_dev}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - postgres_data:/var/lib/postgresql
+
+volumes:
+  node_modules:
+  uploads:
+  postgres_data:

@@ -20,6 +20,6 @@ Un adaptador para que el agente visual adjunte el PDF autorizado a la actividad 
 
 Prueba una actividad cerrada, sesión vencida, cuenta incorrecta, actividad incorrecta, borrador, entrega confirmada y conexión perdida después de una acción que pudo enviar. La verificación posterior a un fallo incierto debe operar en modo lectura.
 
-Con el responsable 02, documenta qué capacidad del navegador usaste para cargar y qué texto o referencia demuestra el resultado final. Ejecuta `npm run build` y `npm test`. Envía al responsable 01 el nombre del adaptador, las condiciones de ejecución y cómo reproducir la prueba. La carga y la entrega reales se verifican en una actividad de prueba autorizada.
+Con el responsable 02, documenta qué capacidad del navegador usaste para cargar y qué texto o referencia demuestra el resultado final. Ejecuta `docker compose exec app npm run build` y `docker compose exec app npm test`. Envía al responsable 01 el nombre del adaptador, las condiciones de ejecución y cómo reproducir la prueba. La carga y la entrega reales se verifican en una actividad de prueba autorizada.
 
 [Estados de entrega en Moodle](https://docs.moodle.org/26/en/Viewing_an_assignment) · [Capacidades del navegador integrado](https://learn.chatgpt.com/docs/browser#computer-use-in-the-browser)

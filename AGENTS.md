@@ -15,6 +15,10 @@ Lee la guía de tu rama y el [contrato común](docs/equipo/01-nucleo-y-persisten
 
 El [plan de arquitectura completo](docs/plan-arquitectura-completo.md) es una referencia para una versión posterior. Para este piloto, sigue el alcance de las cuatro guías.
 
+## Entorno de desarrollo
+
+Arranca el [entorno Docker del equipo](docs/desarrollo-docker.md) con `docker compose up -d --build --wait`. Ejecuta npm dentro del servicio `app`. Cuando exista el lockfile, instala las dependencias con `docker compose exec app npm ci`.
+
 ## Arquitectura y dependencias
 
 - **Dominio (`src/core/domain/`).** Coloca aquí los tipos y las reglas de negocio que deben cumplirse en cualquier interfaz. El dominio depende solo de TypeScript y de otros elementos del dominio.
@@ -36,6 +40,6 @@ El [plan de arquitectura completo](docs/plan-arquitectura-completo.md) es una re
 ## Pruebas y PR
 
 1. Añade las pruebas de aceptación de tu guía junto al código que posees. Prueba el núcleo con puertos en memoria y los adaptadores con sus contratos. Para los recorridos visuales repetibles, usa simuladores o datos anonimizados.
-2. Cuando exista el commit base, ejecuta `npm run build` y `npm test` desde la raíz. Si un comando todavía no existe o depende de una capacidad externa, indica en el PR qué comprobaste y qué queda pendiente.
+2. Cuando exista el commit base, ejecuta `docker compose exec app npm run build` y `docker compose exec app npm test` desde la raíz. Si un comando todavía no existe o depende de una capacidad externa, indica en el PR qué comprobaste y qué queda pendiente.
 3. Actualiza tu rama con la base del equipo y revisa que el diff respete tus archivos a cargo. En el PR incluye el comportamiento entregado, los comandos y resultados de prueba, las opciones de configuración que necesita el ensamblaje y cualquier bloqueo real.
 4. Registra por separado los resultados simulados y los del navegador real. El piloto se cierra cuando el panel despacha el turno visual, el agente adjunta el PDF automáticamente y Aula Virtual muestra la entrega confirmada.

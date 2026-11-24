@@ -1,0 +1,9 @@
+{
+  "sourceRoot": "src",
+  "entryFile": "bootstrap/main",
+  "compilerOptions": {
+    "deleteOutDir": true,
+    "assets": ["bootstrap/dev-demo/views/**/*.hbs"],
+    "watchAssets": true
+  }
+}

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tareas · Aula Virtual</title>
+  <link rel="stylesheet" href="/assets/panel.css">
+  <script src="/assets/panel.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><div class="shell"><a href="/" class="brand">Aula Virtual</a></div></header>
+  <main class="shell main">
+    {{#if demoMode}}<p class="notice">Modo de prueba. La captura y la entrega son simuladas.</p>{{/if}}
+    <div class="heading">
+      <h1>Tareas</h1>
+      <form method="post" action="/busquedas"><button type="submit" {{#if job.active}}disabled{{/if}}>Buscar tareas</button></form>
+    </div>
+    {{#if job}}
+      <p class="notice" role="status" {{#if job.active}}data-job-id="{{job.jobId}}"{{/if}}>
+        <strong>{{job.label}}</strong>{{#if job.summary}} · {{job.summary}}{{/if}}
+      </p>
+    {{/if}}
+    {{#each groups}}
+      <section class="task-group" aria-labelledby="group-{{@index}}">
+        <h2 id="group-{{@index}}">{{label}}</h2>
+        {{#if tasks}}
+          <ul class="task-list">
+            {{#each tasks}}
+              <li>
+                <div>
+                  <a class="task-link" href="/tareas/{{taskId}}">{{title}}</a>
+                  <p class="muted">{{course}}</p>
+                </div>
+                <div class="task-meta">
+                  {{#if deadline}}<time datetime="{{deadline}}">{{deadlineLabel}}</time>{{/if}}
+                  {{#if delivery}}<span class="state">{{delivery.label}}</span>{{/if}}
+                </div>
+              </li>
+            {{/each}}
+          </ul>
+        {{else}}
+          <p class="muted">{{empty}}</p>
+        {{/if}}
+      </section>
+    {{/each}}
+  </main>
+</body>
+</html>

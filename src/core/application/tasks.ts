@@ -1,6 +1,6 @@
 import { compareDeadline, visibleDeadline } from '../domain/deadline';
 import { ApplicationError, PdfSummary } from '../domain/model';
-import { JobRepository, PdfStore, TaskRepository } from './ports/persistence';
+import { JobRepository, PdfStore, SearchHistory, TaskRepository } from './ports/persistence';
 
 export const MAX_PDF_BYTES = 20 * 1024 * 1024;
 
@@ -69,6 +69,14 @@ export class SolicitarEntrega {
 
   async execute(input: { accountId: string; taskId: string; pdfId: string }) {
     return { jobId: await this.jobs.authorizeDelivery(input.accountId, input.taskId, input.pdfId) };
+  }
+}
+
+export class ConsultarUltimaBusqueda {
+  constructor(private readonly history: SearchHistory) {}
+
+  execute(accountId: string) {
+    return this.history.latestSearch(accountId);
   }
 }
 

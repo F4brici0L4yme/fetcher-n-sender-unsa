@@ -2,7 +2,7 @@ import { DynamicModule, Logger, Module, OnApplicationShutdown, OnModuleInit } fr
 import { Pool } from 'pg';
 import { AssignmentFetcher, AssignmentSender, ASSIGNMENT_FETCHER, ASSIGNMENT_SENDER } from '../core/application/ports/academic';
 import {
-  BuscarTareas, CargarPdf, ConsultarTrabajo, ListarTareas, SolicitarEntrega, VerificarEntrega, VerTarea,
+  BuscarTareas, CargarPdf, ConsultarTrabajo, ConsultarUltimaBusqueda, ListarTareas, SolicitarEntrega, VerificarEntrega, VerTarea,
 } from '../core/application/tasks';
 import { AcademicWorker } from '../core/application/worker';
 import { LocalPdfStore } from '../adapters/persistence/files';
@@ -54,7 +54,7 @@ class WorkerLoop implements OnModuleInit, OnApplicationShutdown {
 export class CoreModule {
   static register(config: RuntimeConfig): DynamicModule {
     const exported = [ACCOUNT_ID, ASSIGNMENT_FETCHER, ASSIGNMENT_SENDER,
-      BuscarTareas, ListarTareas, VerTarea, CargarPdf, SolicitarEntrega, ConsultarTrabajo, VerificarEntrega];
+      BuscarTareas, ListarTareas, VerTarea, CargarPdf, SolicitarEntrega, ConsultarTrabajo, ConsultarUltimaBusqueda, VerificarEntrega];
 
     return {
       module: CoreModule,
@@ -80,6 +80,10 @@ export class CoreModule {
           useFactory: (tasks: PostgresTaskRepository, files: LocalPdfStore) => new CargarPdf(tasks, files),
         },
         { provide: SolicitarEntrega, inject: [PostgresJobRepository], useFactory: (jobs: PostgresJobRepository) => new SolicitarEntrega(jobs) },
+        {
+          provide: ConsultarUltimaBusqueda, inject: [PostgresJobRepository],
+          useFactory: (jobs: PostgresJobRepository) => new ConsultarUltimaBusqueda(jobs),
+        },
         { provide: ConsultarTrabajo, inject: [PostgresJobRepository], useFactory: (jobs: PostgresJobRepository) => new ConsultarTrabajo(jobs) },
         { provide: VerificarEntrega, inject: [PostgresJobRepository], useFactory: (jobs: PostgresJobRepository) => new VerificarEntrega(jobs) },
         {

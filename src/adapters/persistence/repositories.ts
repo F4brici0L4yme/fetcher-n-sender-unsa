@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { JobRepository, TaskRepository, WorkerRepository, WorkerSession } from '../../core/application/ports/persistence';
+import { JobRepository, SearchHistory, TaskRepository, WorkerRepository, WorkerSession } from '../../core/application/ports/persistence';
 import { isDateOnly } from '../../core/domain/deadline';
 import { requireCurrentPdfAndAvailableDelivery, requireDeliveryDestination } from '../../core/domain/delivery';
 import {
@@ -75,7 +75,7 @@ export class PostgresTaskRepository implements TaskRepository {
   }
 }
 
-export class PostgresJobRepository implements JobRepository {
+export class PostgresJobRepository implements JobRepository, SearchHistory {
   constructor(private readonly db: Database) {}
 
   async queueSearch(accountId: string): Promise<string> {
@@ -120,6 +120,14 @@ export class PostgresJobRepository implements JobRepository {
       .where(and(eq(jobs.id, jobId), eq(jobs.accountId, accountId), eq(jobs.state, 'needs_verification')))
       .returning({ id: jobs.id });
     if (!job) throw new ApplicationError('delivery_not_uncertain', 'La entrega no está por verificar.');
+  }
+
+  async latestSearch(accountId: string): Promise<Extract<JobView, { kind: 'search' }> | null> {
+    const [job] = await this.db.select().from(jobs)
+      .where(and(eq(jobs.accountId, accountId), eq(jobs.kind, 'search')))
+      .orderBy(desc(jobs.createdAt), desc(jobs.id)).limit(1);
+    const result = job ? jobView(job, null) : null;
+    return result?.kind === 'search' ? result : null;
   }
 
   async find(accountId: string, jobId: string): Promise<JobView | null> {

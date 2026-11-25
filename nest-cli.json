@@ -3,7 +3,7 @@
   "entryFile": "bootstrap/main",
   "compilerOptions": {
     "deleteOutDir": true,
-    "assets": ["bootstrap/dev-demo/views/**/*.hbs"],
+    "assets": ["adapters/web/views/**/*.hbs", "adapters/web/public/**/*"],
     "watchAssets": true
   }
 }

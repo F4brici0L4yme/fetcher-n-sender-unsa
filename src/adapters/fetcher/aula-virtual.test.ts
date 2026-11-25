@@ -97,6 +97,17 @@ test('rechaza una ruta de portal que pueda cambiar el origen configurado', () =>
   }), /portalUrl/);
 });
 
+test('conserva enlaces de actividades dentro de assign con otros parámetros o páginas', async () => {
+  const assignments = [
+    { ...assignment('10', null), activityUrl: `${portal}/2026B/mod/assign/view.php?submissionid=10` },
+    { ...assignment('11', null), activityUrl: `${portal}/2026B/mod/assign/submission.php?submissionid=11` },
+  ];
+  const fetcher = new AulaVirtualFetcher({ portalUrl: `${portal}/2026B/`, accountId, runner: {
+    async capture() { return { kind: 'success', observedAccountId: accountId, assignments }; },
+  } });
+  assert.deepEqual(await fetcher.fetch({ jobId: 'job-9', accountId }), { kind: 'success', assignments });
+});
+
 test('un error del agente no se interpreta como una búsqueda vacía', async () => {
   const fetcher = new AulaVirtualFetcher({ portalUrl: portal, accountId, runner: {
     async capture() { throw new Error('browser disconnected'); },

@@ -34,9 +34,9 @@ function parseAssignment(value: unknown, portalUrl: string): CapturedAssignment 
   const data = record(value);
   if (!data) throw new Error('Invalid assignment');
   const url = new URL(requiredText(data.activityUrl));
-  const expected = new URL('mod/assign/view.php', portalUrl);
+  const expected = new URL('mod/assign/', portalUrl);
   if (url.origin !== expected.origin || url.protocol !== 'https:' || url.username || url.password
-    || url.pathname !== expected.pathname || !url.searchParams.has('id')) throw new Error('Unexpected activity URL');
+    || !url.pathname.startsWith(expected.pathname)) throw new Error('Unexpected activity URL');
   if (data.deadline !== null && typeof data.deadline !== 'string') throw new Error('Invalid deadline');
   if (typeof data.destination !== 'string'
     || !['aula_virtual', 'other', 'unknown'].includes(data.destination)) throw new Error('Invalid destination');

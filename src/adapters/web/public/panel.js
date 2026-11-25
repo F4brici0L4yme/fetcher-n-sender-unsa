@@ -1,5 +1,17 @@
+const capturePanel = document.querySelector('[data-capture-revision]');
+if (capturePanel) {
+  const changes = new EventSource('/eventos/tareas');
+  changes.addEventListener('tasks-version', (event) => {
+    const { revision } = JSON.parse(event.data);
+    if ((revision ?? '') !== capturePanel.dataset.captureRevision) {
+      changes.close();
+      window.location.reload();
+    }
+  });
+}
+
 const status = document.querySelector('[data-job-id]');
-if (status) {
+if (status && !capturePanel) {
   const url = '/trabajos/' + encodeURIComponent(status.dataset.jobId);
   async function poll() {
     try {

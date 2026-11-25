@@ -4,10 +4,11 @@ import { AssignmentFetcher, AssignmentSender, ASSIGNMENT_FETCHER, ASSIGNMENT_SEN
 import {
   BuscarTareas, CargarPdf, ConsultarTrabajo, ConsultarUltimaBusqueda, ListarTareas, SolicitarEntrega, VerificarEntrega, VerTarea,
 } from '../core/application/tasks';
+import { ConsultarRevisionTareas } from '../core/application/assignment-import';
 import { AcademicWorker } from '../core/application/worker';
 import { LocalPdfStore } from '../adapters/persistence/files';
 import {
-  postgresDatabase, PostgresJobRepository, PostgresTaskRepository, PostgresWorkerRepository,
+  postgresDatabase, PostgresAssignmentImportRepository, PostgresJobRepository, PostgresTaskRepository, PostgresWorkerRepository,
 } from '../adapters/persistence/repositories';
 import { RuntimeConfig } from './config';
 import { createSimulatedAcademic } from './dev-demo/simulated-academic';
@@ -26,12 +27,12 @@ class WorkerLoop implements OnModuleInit, OnApplicationShutdown {
   private timer?: ReturnType<typeof setTimeout>;
   private pending?: Promise<void>;
 
-  constructor(private readonly worker: AcademicWorker, private readonly pool: Pool, private readonly accountId: string) {
+  constructor(private readonly worker: AcademicWorker, private readonly pool: Pool, private readonly accountId: string, private readonly enabled: boolean) {
     pool.on('error', () => this.logger.warn('Se perdió una conexión de PostgreSQL.'));
   }
 
   onModuleInit() {
-    this.poll();
+    if (this.enabled) this.poll();
   }
 
   private poll() {
@@ -55,7 +56,7 @@ export class CoreModule {
   static register(config: RuntimeConfig): DynamicModule {
     const demo = config.demoMode ? createSimulatedAcademic(config.accountId) : undefined;
     const exported = [ACCOUNT_ID, ASSIGNMENT_FETCHER, ASSIGNMENT_SENDER,
-      BuscarTareas, ListarTareas, VerTarea, CargarPdf, SolicitarEntrega, ConsultarTrabajo, ConsultarUltimaBusqueda, VerificarEntrega];
+      BuscarTareas, ListarTareas, VerTarea, CargarPdf, SolicitarEntrega, ConsultarTrabajo, ConsultarUltimaBusqueda, ConsultarRevisionTareas, VerificarEntrega];
 
     return {
       module: CoreModule,
@@ -72,6 +73,10 @@ export class CoreModule {
         {
           provide: PostgresJobRepository, inject: [Pool],
           useFactory: (pool: Pool) => new PostgresJobRepository(postgresDatabase(pool)),
+        },
+        {
+          provide: ConsultarRevisionTareas, inject: [Pool],
+          useFactory: (pool: Pool) => new ConsultarRevisionTareas(new PostgresAssignmentImportRepository(postgresDatabase(pool))),
         },
         { provide: BuscarTareas, inject: [PostgresJobRepository], useFactory: (jobs: PostgresJobRepository) => new BuscarTareas(jobs) },
         { provide: ListarTareas, inject: [PostgresTaskRepository], useFactory: (tasks: PostgresTaskRepository) => new ListarTareas(tasks) },
@@ -90,7 +95,7 @@ export class CoreModule {
         {
           provide: WorkerLoop, inject: [Pool, ASSIGNMENT_FETCHER, ASSIGNMENT_SENDER, LocalPdfStore, ACCOUNT_ID],
           useFactory: (pool: Pool, fetcher: AssignmentFetcher, sender: AssignmentSender, files: LocalPdfStore, accountId: string) =>
-            new WorkerLoop(new AcademicWorker(new PostgresWorkerRepository(pool), fetcher, sender, files), pool, accountId),
+            new WorkerLoop(new AcademicWorker(new PostgresWorkerRepository(pool), fetcher, sender, files), pool, accountId, !config.assistedCapture),
         },
       ],
       exports: exported,

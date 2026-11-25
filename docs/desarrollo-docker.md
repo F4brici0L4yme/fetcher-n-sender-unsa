@@ -13,6 +13,8 @@ Compose arranca un contenedor de desarrollo con Node.js y npm y un contenedor co
 
 ## Programar y probar
 
+Para preparar una sesión de captura desde Codex y actualizar el panel automáticamente, sigue la [guía de captura asistida](demo-captura-asistida.md). Los comandos de esta sección sirven para probar el piloto simulado.
+
 El contenedor `app` queda listo para ejecutar los comandos del proyecto:
 
 ```bash
@@ -21,7 +23,7 @@ docker compose exec app npm run db:migrate
 docker compose exec app npm run build
 docker compose exec app npm test
 docker compose exec app npm run test:integration
-docker compose exec -e DEMO_MODE=true app npm run start:dev
+docker compose exec -e AULA_CAPTURE_MODE= -e DEMO_MODE=true app npm run start:dev
 ```
 
 Repite `npm ci` dentro del contenedor cuando cambie el lockfile. La suite de integración usa su propia base de datos temporal. Para abrir una terminal de trabajo, usa `docker compose exec app sh`.

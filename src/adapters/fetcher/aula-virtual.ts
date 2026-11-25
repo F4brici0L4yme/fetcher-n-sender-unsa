@@ -51,20 +51,43 @@ function parseAssignment(value: unknown, portalUrl: string): CapturedAssignment 
   };
 }
 
+export function normalizeAulaPortalUrl(value: string): string {
+  const portal = URL.parse(value);
+  if (!portal || portal.protocol !== 'https:' || portal.username || portal.password || portal.pathname.startsWith('//')) {
+    throw new Error('Configura portalUrl con la URL HTTPS del periodo de Aula Virtual.');
+  }
+  if (!portal.pathname.endsWith('/')) portal.pathname += '/';
+  portal.search = '';
+  portal.hash = '';
+  return portal.href;
+}
+
+export function readAulaCapture(
+  value: unknown, portalUrl: string, expectedAccount: string, now: Date,
+): CaptureResult {
+  const response = record(value);
+  if (!response) return { kind: 'failed' };
+  if (response.kind === 'session_expired' || response.kind === 'unavailable' || response.kind === 'failed') {
+    return { kind: response.kind };
+  }
+  if (response.kind !== 'success' || response.observedAccountId !== expectedAccount
+    || !Array.isArray(response.assignments)) return { kind: 'failed' };
+
+  try {
+    const assignments = response.assignments.map((item) => parseAssignment(item, portalUrl))
+      .filter((item) => visibleDeadline(item.deadline, now));
+    return { kind: 'success', assignments };
+  } catch {
+    return { kind: 'failed' };
+  }
+}
+
 export class AulaVirtualFetcher implements AssignmentFetcher {
   private readonly portalUrl: string;
   private readonly clock: () => Date;
 
   constructor(private readonly options: AulaVirtualFetcherOptions) {
-    const portal = new URL(options.portalUrl);
-    if (portal.protocol !== 'https:' || portal.username || portal.password || portal.pathname.startsWith('//')) {
-      throw new Error('Aula Virtual portalUrl must be an HTTPS URL');
-    }
-    const basePath = portal.pathname.endsWith('/') ? portal.pathname : `${portal.pathname}/`;
-    portal.pathname = basePath;
-    portal.search = '';
-    portal.hash = '';
-    this.portalUrl = portal.href;
+    this.portalUrl = normalizeAulaPortalUrl(options.portalUrl);
     this.clock = options.clock ?? (() => new Date());
   }
 
@@ -73,19 +96,10 @@ export class AulaVirtualFetcher implements AssignmentFetcher {
     if (!this.options.runner) return { kind: 'unavailable' };
 
     try {
-      const response = record(await this.options.runner.capture({
+      const response = await this.options.runner.capture({
         jobId: order.jobId, accountId: order.accountId, portalUrl: this.portalUrl, readOnly: true,
-      }));
-      if (!response) return { kind: 'failed' };
-      if (response.kind === 'session_expired' || response.kind === 'unavailable' || response.kind === 'failed') {
-        return { kind: response.kind };
-      }
-      if (response.kind !== 'success' || response.observedAccountId !== order.accountId
-        || !Array.isArray(response.assignments)) return { kind: 'failed' };
-      const now = this.clock();
-      const assignments = response.assignments.map((item) => parseAssignment(item, this.portalUrl))
-        .filter((item) => visibleDeadline(item.deadline, now));
-      return { kind: 'success', assignments };
+      });
+      return readAulaCapture(response, this.portalUrl, order.accountId, this.clock());
     } catch {
       return { kind: 'failed' };
     }

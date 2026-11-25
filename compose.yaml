@@ -9,6 +9,10 @@ services:
       TZ: America/Lima
       DATABASE_URL: postgresql://fetcher:${POSTGRES_PASSWORD:-fetcher_dev}@db:5432/fetcher
       UPLOAD_DIR: /data/uploads
+      AULA_CAPTURE_MODE: ${AULA_CAPTURE_MODE:-}
+      AULA_PORTAL_URL: ${AULA_PORTAL_URL:-}
+      AULA_PORTAL_ACCOUNT: ${AULA_PORTAL_ACCOUNT:-}
+      AULA_ACCOUNT_ID: ${AULA_ACCOUNT_ID:-}
     depends_on:
       db:
         condition: service_healthy

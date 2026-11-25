@@ -91,18 +91,22 @@ test('acepta actividades bajo la ruta configurada del periodo académico', async
   assert.deepEqual(calls, [{ jobId: 'job-8', accountId, portalUrl: `${portal}/2026B/`, readOnly: true }]);
 });
 
-test('usa el periodo configurado sin fijar 2026B y rechaza otro periodo', async () => {
-  for (const period of ['2027A', '2027B']) {
-    const activity = { ...assignment('12', null), activityUrl: `${portal}/${period}/mod/assign/view.php?id=12` };
-    const runner: VisualCaptureRunner = { async capture() {
-      return { kind: 'success', observedAccountId: accountId, assignments: [activity] };
-    } };
-    const fetcher = new AulaVirtualFetcher({ portalUrl: `${portal}/${period}/`, accountId, runner });
-    assert.deepEqual(await fetcher.fetch({ jobId: 'job-period', accountId }), {
-      kind: 'success', assignments: [activity],
-    });
-    const wrongPeriod = new AulaVirtualFetcher({ portalUrl: `${portal}/2026B/`, accountId, runner });
-    assert.deepEqual(await wrongPeriod.fetch({ jobId: 'job-period', accountId }), { kind: 'failed' });
+test('usa cualquier año y semestre configurado, y rechaza otro periodo', async () => {
+  for (const year of [1999, 2026, 2027, 2035, 2099]) {
+    for (const semester of ['A', 'B']) {
+      const period = `${year}${semester}`;
+      const otherPeriod = `${year}${semester === 'A' ? 'B' : 'A'}`;
+      const activity = { ...assignment('12', null), activityUrl: `${portal}/${period}/mod/assign/view.php?id=12` };
+      const runner: VisualCaptureRunner = { async capture() {
+        return { kind: 'success', observedAccountId: accountId, assignments: [activity] };
+      } };
+      const fetcher = new AulaVirtualFetcher({ portalUrl: `${portal}/${period}/?redirect=0`, accountId, runner });
+      assert.deepEqual(await fetcher.fetch({ jobId: 'job-period', accountId }), {
+        kind: 'success', assignments: [activity],
+      });
+      const wrongPeriod = new AulaVirtualFetcher({ portalUrl: `${portal}/${otherPeriod}/`, accountId, runner });
+      assert.deepEqual(await wrongPeriod.fetch({ jobId: 'job-period', accountId }), { kind: 'failed' });
+    }
   }
 });
 

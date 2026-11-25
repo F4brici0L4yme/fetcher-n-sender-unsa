@@ -1,29 +1,53 @@
-import { AssignmentFetcher, AssignmentSender } from '../../core/application/ports/academic';
+import { AulaVirtualFetcher } from '../../adapters/fetcher/aula-virtual';
+import { DeliveryPageObservation } from '../../adapters/sender/aula-virtual-delivery-browser';
+import { AulaVirtualSender } from '../../adapters/sender/aula-virtual-sender';
 
-export const simulatedFetcher: AssignmentFetcher = {
-  async fetch() {
-    return {
-      kind: 'success',
-      assignments: [{
-        externalId: 'demo-1', title: 'Práctica de prueba', course: 'Curso de demostración',
-        activityUrl: 'https://aula.example.invalid/mod/assign/view.php?id=1',
-        deadline: null, destination: 'aula_virtual',
-      }],
-    };
-  },
-};
+const portalUrl = 'https://aula.example.invalid/';
+const activityUrl = new URL('mod/assign/view.php?id=1', portalUrl).href;
 
-export const simulatedSender: AssignmentSender = {
-  async submit(order) {
-    return {
-      state: 'confirmed',
-      evidence: {
-        activityUrl: order.activityUrl, fileName: order.originalName,
-        visibleStatus: 'Entrega simulada confirmada', portalReference: order.jobId,
+export function createSimulatedAcademic(accountId: string) {
+  const fetcher = new AulaVirtualFetcher({
+    portalUrl, accountId,
+    runner: {
+      async capture() {
+        return {
+          kind: 'success', observedAccountId: accountId, assignments: [{
+            externalId: 'demo-1', title: 'Práctica de prueba', course: 'Curso de demostración',
+            activityUrl, deadline: null, destination: 'aula_virtual',
+          }],
+        };
       },
-    };
-  },
-  async verify() {
-    return { state: 'needs_verification' };
-  },
-};
+    },
+  });
+  const sender = new AulaVirtualSender({
+    portalUrl, accountId,
+    browser: {
+      async openForSubmission(target) {
+        let observation: DeliveryPageObservation = {
+          ...target, state: 'open', visibleStatus: 'Sin envío', attachments: [],
+        };
+        return {
+          kind: 'opened',
+          page: {
+            async inspect() { return observation; },
+            async attachAndSave({ originalName, sha256 }) {
+              observation = {
+                ...observation, state: 'draft', visibleStatus: 'Borrador',
+                attachments: [{ name: originalName, sha256 }],
+              };
+            },
+            async submitForGrading() {
+              observation = {
+                ...observation, state: 'submitted', visibleStatus: 'Entrega simulada confirmada',
+                portalReference: target.jobId,
+              };
+            },
+            async close() {},
+          },
+        };
+      },
+      async openForVerification() { return { kind: 'unavailable' }; },
+    },
+  });
+  return { fetcher, sender };
+}

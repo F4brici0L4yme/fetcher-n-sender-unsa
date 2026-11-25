@@ -2,7 +2,7 @@ import { DynamicModule, Logger, Module, OnApplicationShutdown, OnModuleInit } fr
 import { Pool } from 'pg';
 import { AssignmentFetcher, AssignmentSender, ASSIGNMENT_FETCHER, ASSIGNMENT_SENDER } from '../core/application/ports/academic';
 import {
-  BuscarTareas, CargarPdf, ConsultarTrabajo, ListarTareas, SolicitarEntrega, VerificarEntrega, VerTarea,
+  BuscarTareas, CargarPdf, ConsultarTrabajo, ConsultarUltimaBusqueda, ListarTareas, SolicitarEntrega, VerificarEntrega, VerTarea,
 } from '../core/application/tasks';
 import { AcademicWorker } from '../core/application/worker';
 import { LocalPdfStore } from '../adapters/persistence/files';
@@ -10,7 +10,7 @@ import {
   postgresDatabase, PostgresJobRepository, PostgresTaskRepository, PostgresWorkerRepository,
 } from '../adapters/persistence/repositories';
 import { RuntimeConfig } from './config';
-import { simulatedFetcher, simulatedSender } from './dev-demo/simulated-academic';
+import { createSimulatedAcademic } from './dev-demo/simulated-academic';
 
 const unavailableFetcher: AssignmentFetcher = { async fetch() { return { kind: 'unavailable' }; } };
 const unavailableSender: AssignmentSender = {
@@ -53,15 +53,16 @@ class WorkerLoop implements OnModuleInit, OnApplicationShutdown {
 @Module({})
 export class CoreModule {
   static register(config: RuntimeConfig): DynamicModule {
+    const demo = config.demoMode ? createSimulatedAcademic(config.accountId) : undefined;
     const exported = [ACCOUNT_ID, ASSIGNMENT_FETCHER, ASSIGNMENT_SENDER,
-      BuscarTareas, ListarTareas, VerTarea, CargarPdf, SolicitarEntrega, ConsultarTrabajo, VerificarEntrega];
+      BuscarTareas, ListarTareas, VerTarea, CargarPdf, SolicitarEntrega, ConsultarTrabajo, ConsultarUltimaBusqueda, VerificarEntrega];
 
     return {
       module: CoreModule,
       providers: [
         { provide: ACCOUNT_ID, useValue: config.accountId },
-        { provide: ASSIGNMENT_FETCHER, useValue: config.demoMode ? simulatedFetcher : unavailableFetcher },
-        { provide: ASSIGNMENT_SENDER, useValue: config.demoMode ? simulatedSender : unavailableSender },
+        { provide: ASSIGNMENT_FETCHER, useValue: demo?.fetcher ?? unavailableFetcher },
+        { provide: ASSIGNMENT_SENDER, useValue: demo?.sender ?? unavailableSender },
         { provide: Pool, useFactory: () => new Pool({ connectionString: config.databaseUrl }) },
         { provide: LocalPdfStore, useFactory: () => new LocalPdfStore(config.uploadDir) },
         {
@@ -80,6 +81,10 @@ export class CoreModule {
           useFactory: (tasks: PostgresTaskRepository, files: LocalPdfStore) => new CargarPdf(tasks, files),
         },
         { provide: SolicitarEntrega, inject: [PostgresJobRepository], useFactory: (jobs: PostgresJobRepository) => new SolicitarEntrega(jobs) },
+        {
+          provide: ConsultarUltimaBusqueda, inject: [PostgresJobRepository],
+          useFactory: (jobs: PostgresJobRepository) => new ConsultarUltimaBusqueda(jobs),
+        },
         { provide: ConsultarTrabajo, inject: [PostgresJobRepository], useFactory: (jobs: PostgresJobRepository) => new ConsultarTrabajo(jobs) },
         { provide: VerificarEntrega, inject: [PostgresJobRepository], useFactory: (jobs: PostgresJobRepository) => new VerificarEntrega(jobs) },
         {

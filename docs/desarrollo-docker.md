@@ -26,9 +26,9 @@ docker compose exec -e DEMO_MODE=true app npm run start:dev
 
 Repite `npm ci` dentro del contenedor cuando cambie el lockfile. La suite de integración usa su propia base de datos temporal. Para abrir una terminal de trabajo, usa `docker compose exec app sh`.
 
-Abre [la pantalla de prueba](http://127.0.0.1:3000/__demo). Pulsa **Buscar tareas** dos veces y comprueba que aparece una sola **Práctica de prueba**. Ábrela, carga un PDF y pulsa **Autorizar y entregar**. La pantalla debe mostrar **Entrega simulada confirmada**. El simulador usa una cuenta separada y una actividad ficticia.
+Abre [el panel](http://127.0.0.1:3000/). Pulsa **Buscar tareas** dos veces y comprueba que aparece una sola **Práctica de prueba**. Ábrela, carga un PDF y pulsa **Autorizar y entregar**. La pantalla debe mostrar **Entrega simulada confirmada**. El simulador usa una cuenta separada y una actividad ficticia.
 
-La aplicación lee `DATABASE_URL` para conectarse a `db:5432`, `UPLOAD_DIR` para guardar los PDF y `HOST` y `PORT` para escuchar en `0.0.0.0:3000` dentro del contenedor. Si el puerto del equipo está ocupado, arranca Compose con `APP_PORT=3001 docker compose up -d --build --wait` y abre `http://127.0.0.1:3001/__demo`. La pantalla solo se monta con `NODE_ENV=development` y `DEMO_MODE=true`.
+La aplicación lee `DATABASE_URL` para conectarse a `db:5432`, `UPLOAD_DIR` para guardar los PDF y `HOST` y `PORT` para escuchar en `0.0.0.0:3000` dentro del contenedor. Si el puerto del equipo está ocupado, arranca Compose con `APP_PORT=3001 docker compose up -d --build --wait` y abre `http://127.0.0.1:3001/`. Los simuladores solo se activan con `NODE_ENV=development` y `DEMO_MODE=true`.
 
 ## Detener el entorno
 

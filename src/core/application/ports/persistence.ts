@@ -16,6 +16,10 @@ export interface JobRepository {
   find(accountId: string, jobId: string): Promise<JobView | null>;
 }
 
+export interface SearchHistory {
+  latestSearch(accountId: string): Promise<Extract<JobView, { kind: 'search' }> | null>;
+}
+
 export interface PdfStore {
   write(content: Uint8Array): Promise<Omit<StoredPdf, 'originalName'>>;
   discard(storageKey: string): Promise<void>;

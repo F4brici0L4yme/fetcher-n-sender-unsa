@@ -213,7 +213,9 @@ test('integración del piloto con PostgreSQL y PDF en disco', async (suite) => {
     try {
       await app.listen(0, '127.0.0.1');
       const origin = await app.getUrl();
-      assert.equal((await fetch(origin)).status, 404);
+      const alias = await fetch(origin + '/__demo', { redirect: 'manual' });
+      assert.equal(alias.status, 302);
+      assert.equal(alias.headers.get('location'), '/');
       async function post(path: string, body?: FormData | URLSearchParams) {
         const response = await fetch(origin + path, { method: 'POST', body, redirect: 'manual' });
         assert.equal(response.status, 303, await response.text());
@@ -233,20 +235,21 @@ test('integración del piloto con PostgreSQL y PDF en disco', async (suite) => {
         assert.fail('No apareció ' + expected + ' en ' + html);
       }
 
-      await waitFor(await post('/__demo/search'), 'Búsqueda completada');
-      const list = await waitFor(await post('/__demo/search'), 'Búsqueda completada');
+      await waitFor(await post('/busquedas'), 'Búsqueda completada');
+      const list = await waitFor(await post('/busquedas'), 'Búsqueda completada');
       assert.equal(list.match(/Práctica de prueba/g)?.length, 1);
-      const href = list.match(/href="(\/__demo\/tasks\/[^"]+)"/)?.[1];
+      const href = list.match(/href="(\/tareas\/[^"]+)"/)?.[1];
       assert.ok(href);
       const form = new FormData();
       form.set('pdf', new Blob([new Uint8Array(samplePdf())], { type: 'application/pdf' }), 'demo.pdf');
       await post(href + '/pdf', form);
-      const task = await waitFor(href, 'PDF vigente: demo.pdf');
+      const task = await waitFor(href, 'PDF vigente: <strong>demo.pdf</strong>');
       const pdfId = task.match(/name="pdfId" value="([^"]+)"/)?.[1];
       assert.ok(pdfId);
-      await post(href + '/deliver', new URLSearchParams({ pdfId }));
+      await post(href + '/entregas', new URLSearchParams({ pdfId }));
       const confirmation = await waitFor(href, 'Entrega simulada confirmada');
-      assert.match(confirmation, /PDF de este intento: demo\.pdf/);
+      assert.match(confirmation, /Archivo observado: <strong>demo\.pdf<\/strong>/);
+      assert.match(confirmation, /Este PDF ya está entregado/);
     } finally {
       await app.close();
     }

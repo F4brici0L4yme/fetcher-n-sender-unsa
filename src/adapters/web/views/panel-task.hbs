@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{task.title}} · Aula Virtual</title>
+  <link rel="stylesheet" href="/assets/panel.css">
+  <script src="/assets/panel.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><div class="shell"><a href="/" class="brand">Aula Virtual</a></div></header>
+  <main class="shell main">
+    <a href="/" class="back">Volver a tareas</a>
+    {{#if demoMode}}<p class="notice">Modo de prueba. La entrega es simulada.</p>{{/if}}
+    <h1>{{task.title}}</h1>
+    <dl class="details">
+      <div><dt>Curso</dt><dd>{{task.course}}</dd></div>
+      <div><dt>Plazo</dt><dd>{{task.deadlineLabel}}</dd></div>
+      <div><dt>Canal</dt><dd>{{task.destinationLabel}}{{#if task.destinationUrl}} · <a href="{{task.destinationUrl}}">Abrir actividad</a>{{/if}}</dd></div>
+    </dl>
+    <section class="card" aria-labelledby="pdf-title">
+      <h2 id="pdf-title">PDF terminado</h2>
+      {{#if task.currentPdf}}<p>PDF vigente: <strong>{{task.currentPdf.originalName}}</strong></p>{{/if}}
+      <form method="post" action="/tareas/{{task.taskId}}/pdf" enctype="multipart/form-data">
+        <label for="pdf">Selecciona un PDF de hasta 20 MiB</label>
+        <div class="form-actions">
+          <input id="pdf" type="file" name="pdf" accept="application/pdf,.pdf" {{#if uploadError}}aria-invalid="true" aria-describedby="upload-error"{{/if}} required>
+          <button type="submit" class="secondary">Cargar PDF</button>
+        </div>
+        {{#if uploadError}}<p id="upload-error" class="error" role="alert">{{uploadError}}</p>{{/if}}
+      </form>
+    </section>
+    <section class="card" aria-labelledby="deliver-title">
+      <h2 id="deliver-title">Entrega</h2>
+      {{#if task.delivery}}
+        <p class="notice" role="status" {{#if task.delivery.active}}data-job-id="{{task.delivery.jobId}}"{{/if}}>
+          <strong>{{task.delivery.label}}</strong>{{#if task.delivery.detail}} · {{task.delivery.detail}}{{/if}}
+        </p>
+        {{#if task.delivery.evidence.fileName}}<p>Archivo observado: <strong>{{task.delivery.evidence.fileName}}</strong></p>{{/if}}
+      {{/if}}
+      {{#if deliveryError}}<p class="error" role="alert">{{deliveryError}}</p>{{/if}}
+      {{#if task.deliverDisabledReason}}
+        <p class="muted">{{task.deliverDisabledReason}}</p>
+        <button type="button" disabled>Autorizar y entregar</button>
+      {{else}}
+        <form method="post" action="/tareas/{{task.taskId}}/entregas">
+          <p>Enviar <strong>{{task.currentPdf.originalName}}</strong> a esta actividad de Aula Virtual.</p>
+          <input type="hidden" name="pdfId" value="{{task.currentPdf.pdfId}}">
+          <button type="submit">Autorizar y entregar</button>
+        </form>
+      {{/if}}
+    </section>
+  </main>
+</body>
+</html>

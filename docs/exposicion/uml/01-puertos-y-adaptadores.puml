@@ -1,0 +1,60 @@
+@startuml
+!pragma layout smetana
+top to bottom direction
+allowmixing
+hide empty members
+hide circle
+skinparam dpi 160
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 14
+skinparam shadowing false
+skinparam ArrowColor #475569
+skinparam componentStyle uml2
+title Puertos y adaptadores · Aula Virtual
+
+package "Adaptadores de entrada" #EFF6FF {
+  component "CLI · aula:import\nRecibe JSON de Codex" as cli
+  component "Panel NestJS\nPanelController · HTTP / SSE" as web
+}
+
+package "Núcleo de la aplicación" #F0FDF4 {
+  component "ImportarTareasObservadas" as import
+  component "ListarTareas\nConsultarRevisionTareas" as read
+  component "AcademicWorker" as worker
+  class "AssignmentImportRepository" as importPort <<interface>>
+  class "TaskRepository" as readPort <<interface>>
+  class "TaskChanges" as observePort <<interface>>
+  class "AssignmentFetcher\nAssignmentSender" as academicPorts <<interfaces>>
+  class "PdfStore" as filePort <<interface>>
+}
+
+package "Adaptadores de salida" #FFF7ED {
+  component "Repositorios PostgreSQL\nDrizzle" as repo
+  component "PostgresTaskChanges" as observer
+  component "AulaVirtualFetcher\nAulaVirtualSender" as academic
+  component "LocalPdfStore" as files
+}
+
+database "PostgreSQL" as pg
+folder "Volumen de PDF" as volume
+cloud "Aula Virtual" as aula
+
+cli ..> import
+web ..> read
+web ..> observePort : suscripción SSE
+import ..> importPort
+read ..> readPort
+read ..> importPort : revisión
+worker ..> academicPorts
+worker ..> filePort
+importPort <|.. repo
+readPort <|.. repo
+observePort <|.. observer
+academicPorts <|.. academic
+filePort <|.. files
+repo --> pg
+observer --> pg : LISTEN
+files --> volume
+academic ..> aula : integración visual pendiente
+
+@enduml

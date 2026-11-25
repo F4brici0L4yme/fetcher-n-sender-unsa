@@ -18,6 +18,7 @@
       <div><dt>Plazo</dt><dd>{{task.deadlineLabel}}</dd></div>
       <div><dt>Canal</dt><dd>{{task.destinationLabel}}{{#if task.destinationUrl}} · <a href="{{task.destinationUrl}}">Abrir actividad</a>{{/if}}</dd></div>
     </dl>
+    {{#unless assistedCapture}}
     <section class="card" aria-labelledby="pdf-title">
       <h2 id="pdf-title">PDF terminado</h2>
       {{#if task.currentPdf}}<p>PDF vigente: <strong>{{task.currentPdf.originalName}}</strong></p>{{/if}}
@@ -50,6 +51,7 @@
         </form>
       {{/if}}
     </section>
+    {{/unless}}
   </main>
 </body>
 </html>

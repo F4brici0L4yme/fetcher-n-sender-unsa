@@ -10,6 +10,7 @@
     "build": "nest build",
     "test": "npm run build && node --test \"dist/**/*.test.js\"",
     "test:integration": "npm run build && node --test \"dist/**/*.integration.js\"",
+    "aula:import": "node dist/bootstrap/import-aula.js",
     "db:migrate": "drizzle-kit migrate",
     "start:dev": "nest start --watch"
   },

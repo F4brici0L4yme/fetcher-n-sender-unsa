@@ -19,6 +19,8 @@ El [plan de arquitectura completo](docs/plan-arquitectura-completo.md) es una re
 
 Arranca el [entorno Docker del equipo](docs/desarrollo-docker.md) con `docker compose up -d --build --wait`. Ejecuta npm dentro del servicio `app`. Cuando exista el lockfile, instala las dependencias con `docker compose exec app npm ci`.
 
+Para capturar tareas desde el chat de Codex, sigue la [guía de captura asistida](docs/demo-captura-asistida.md). El comando de importación recibe una lectura completa por entrada estándar y publica los cambios para el panel.
+
 ## Arquitectura y dependencias
 
 - **Dominio (`src/core/domain/`).** Coloca aquí los tipos y las reglas de negocio que deben cumplirse en cualquier interfaz. El dominio depende solo de TypeScript y de otros elementos del dominio.

@@ -1,0 +1,33 @@
+@startuml
+!pragma layout smetana
+skinparam dpi 170
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 16
+skinparam shadowing false
+skinparam ArrowColor #475569
+hide empty members
+hide circle
+skinparam classAttributeIconSize 0
+title Repository · Guardar las tareas observadas
+
+class ImportarTareasObservadas #F0FDF4 {
+  +execute(accountId, assignments)
+}
+interface AssignmentImportRepository #F0FDF4 {
+  +recordImport(accountId, assignments)
+  +latestCompletedSearchId(accountId)
+}
+class PostgresAssignmentImportRepository #FFF7ED {
+  +recordImport(accountId, assignments)
+  +latestCompletedSearchId(accountId)
+}
+class "PostgreSQL\ntasks · jobs" as db <<database>>
+
+ImportarTareasObservadas ..> AssignmentImportRepository : usa el puerto
+AssignmentImportRepository <|.. PostgresAssignmentImportRepository
+PostgresAssignmentImportRepository --> db : guarda en una transacción
+note right of PostgresAssignmentImportRepository
+  Upsert por cuenta e identificador externo.
+  Una actividad conserva el mismo registro.
+end note
+@enduml

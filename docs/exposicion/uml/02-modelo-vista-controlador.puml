@@ -1,0 +1,24 @@
+@startuml
+skinparam dpi 160
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 15
+skinparam shadowing false
+skinparam ArrowColor #475569
+hide footbox
+title MVC · Renderizar la bandeja
+
+actor "Estudiante" as user
+participant "Navegador" as browser #EFF6FF
+control "PanelController\nControlador · NestJS" as controller #EFF6FF
+participant "ListarTareas\nModelo · Caso de uso" as model #F0FDF4
+boundary "panel-index.hbs\nVista · Handlebars" as view #FDF2F8
+
+user -> browser : Abre localhost:3000
+browser -> controller : GET /
+controller -> model : execute(accountId)
+model --> controller : Tareas de la cuenta
+controller -> controller : Prepara Próximas y Sin fecha
+controller -> view : Renderiza el modelo de vista
+view --> controller : HTML de la bandeja
+controller --> browser : HTTP 200 con el HTML
+@enduml

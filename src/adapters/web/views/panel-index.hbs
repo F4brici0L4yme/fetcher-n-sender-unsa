@@ -9,11 +9,14 @@
 </head>
 <body>
   <header class="site-header"><div class="shell"><a href="/" class="brand">Aula Virtual</a></div></header>
-  <main class="shell main">
+  <main class="shell main" {{#if assistedCapture}}data-capture-revision="{{assistedCapture.revision}}"{{/if}}>
+    {{#if assistedCapture}}
+      <p class="notice">{{#if assistedCapture.ready}}Pide al agente en el chat de Codex que busque e importe tus tareas.{{else}}Configura AULA_PORTAL_ACCOUNT para habilitar la importación desde Codex.{{/if}}</p>
+    {{/if}}
     {{#if demoMode}}<p class="notice">Modo de prueba. La captura y la entrega son simuladas.</p>{{/if}}
     <div class="heading">
       <h1>Tareas</h1>
-      <form method="post" action="/busquedas"><button type="submit" {{#if job.active}}disabled{{/if}}>Buscar tareas</button></form>
+      {{#unless assistedCapture}}<form method="post" action="/busquedas"><button type="submit" {{#if job.active}}disabled{{/if}}>Buscar tareas</button></form>{{/unless}}
     </div>
     {{#if job}}
       <p class="notice" role="status" {{#if job.active}}data-job-id="{{job.jobId}}"{{/if}}>

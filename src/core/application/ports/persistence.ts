@@ -20,6 +20,15 @@ export interface SearchHistory {
   latestSearch(accountId: string): Promise<Extract<JobView, { kind: 'search' }> | null>;
 }
 
+export interface AssignmentImportRepository {
+  recordImport(accountId: string, assignments: CapturedAssignment[]): Promise<{ jobId: string; updatedTasks: number }>;
+  latestCompletedSearchId(accountId: string): Promise<string | null>;
+}
+
+export interface TaskChanges {
+  subscribe(onChange: () => void, onClose: () => void): () => void;
+}
+
 export interface PdfStore {
   write(content: Uint8Array): Promise<Omit<StoredPdf, 'originalName'>>;
   discard(storageKey: string): Promise<void>;

@@ -4,14 +4,19 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import type { Express } from 'express';
 import { engine } from 'express-handlebars';
 import { join } from 'node:path';
+import { PostgresTaskChanges } from '../adapters/persistence/task-changes';
 import { PanelModule } from '../adapters/web/panel.module';
 import { RuntimeConfig } from './config';
 import { CoreModule } from './core.module';
 
 export async function createApplication(config: RuntimeConfig, logger: false | undefined = undefined) {
   const core = CoreModule.register(config);
+  const assisted = config.assistedCapture ? {
+    ready: Boolean(config.assistedCapture.portalAccount),
+    changes: new PostgresTaskChanges(config.databaseUrl, config.accountId),
+  } : undefined;
   @Module({
-    imports: [core, PanelModule.register(core, config.accountId, config.demoMode)],
+    imports: [core, PanelModule.register(core, config.accountId, config.demoMode, assisted)],
   })
   class ApplicationModule {}
 

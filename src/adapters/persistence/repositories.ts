@@ -1,13 +1,14 @@
 import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { JobRepository, SearchHistory, TaskRepository, WorkerRepository, WorkerSession } from '../../core/application/ports/persistence';
+import { AssignmentImportRepository, JobRepository, SearchHistory, TaskRepository, WorkerRepository, WorkerSession } from '../../core/application/ports/persistence';
 import { isDateOnly } from '../../core/domain/deadline';
 import { requireCurrentPdfAndAvailableDelivery, requireDeliveryDestination } from '../../core/domain/delivery';
 import {
   ApplicationError, CapturedAssignment, DeliveryEvidence, DeliveryState, JobView, SearchState, StoredPdf, TaskView,
 } from '../../core/domain/model';
 import * as schema from './schema';
+import { TASK_CHANGES_CHANNEL } from './task-changes';
 
 const { tasks, pdfs, jobs, deliveries } = schema;
 type Database = NodePgDatabase<typeof schema>;
@@ -24,6 +25,51 @@ function jobView(job: typeof jobs.$inferSelect, delivery: typeof deliveries.$inf
     fileName: delivery.observedFileName ?? undefined, portalReference: delivery.portalReference ?? undefined,
   } : null;
   return { ...base, kind: 'delivery', state: job.state as DeliveryState, evidence, pdfId: delivery?.pdfId };
+}
+
+async function upsertCapturedTasks(db: Pick<Database, 'insert'>, accountId: string, assignments: CapturedAssignment[]) {
+  const byId = new Map(assignments.map((task) => [task.externalId, task]));
+  const rows = Array.from(byId.values(), ({ deadline, ...task }) => ({
+    ...task, accountId,
+    deadlineDate: deadline && isDateOnly(deadline) ? deadline : null,
+    deadlineAt: deadline && !isDateOnly(deadline) ? deadline : null,
+  }));
+  if (rows.length) {
+    await db.insert(tasks).values(rows).onConflictDoUpdate({
+      target: [tasks.accountId, tasks.externalId],
+      set: {
+        course: sql`excluded.course`, title: sql`excluded.title`, activityUrl: sql`excluded.activity_url`,
+        destination: sql`excluded.destination`, deadlineDate: sql`excluded.deadline_date`,
+        deadlineAt: sql`excluded.deadline_at`,
+      },
+    });
+  }
+  return rows.length;
+}
+
+export class PostgresAssignmentImportRepository implements AssignmentImportRepository {
+  constructor(private readonly db: Database) {}
+
+  async recordImport(accountId: string, assignments: CapturedAssignment[]) {
+    return this.db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended('fetcher-import:' || ${accountId}, 0))`);
+      const updatedTasks = await upsertCapturedTasks(tx, accountId, assignments);
+      const [record] = await tx.insert(jobs).values({
+        accountId, kind: 'search', state: 'completed', summary: 'Tareas actualizadas: ' + updatedTasks,
+        createdAt: sql`clock_timestamp()`, updatedAt: sql`clock_timestamp()`,
+      }).returning({ jobId: jobs.id });
+      if (!record) throw new Error('No se registró la importación.');
+      await tx.execute(sql`select pg_notify(${TASK_CHANGES_CHANNEL}, ${accountId})`);
+      return { jobId: record.jobId, updatedTasks };
+    });
+  }
+
+  async latestCompletedSearchId(accountId: string): Promise<string | null> {
+    const [record] = await this.db.select({ id: jobs.id }).from(jobs)
+      .where(and(eq(jobs.accountId, accountId), eq(jobs.kind, 'search'), eq(jobs.state, 'completed')))
+      .orderBy(desc(jobs.updatedAt), desc(jobs.id)).limit(1);
+    return record?.id ?? null;
+  }
 }
 
 export class PostgresTaskRepository implements TaskRepository {
@@ -206,23 +252,8 @@ class PostgresWorkerSession implements WorkerSession {
 
   async completeSearch(jobId: string, assignments: CapturedAssignment[]): Promise<void> {
     await this.db.transaction(async (tx) => {
-      const byId = new Map(assignments.map((task) => [task.externalId, task]));
-      const rows = Array.from(byId.values(), ({ deadline, ...task }) => ({
-        ...task, accountId: this.accountId,
-        deadlineDate: deadline && isDateOnly(deadline) ? deadline : null,
-        deadlineAt: deadline && !isDateOnly(deadline) ? deadline : null,
-      }));
-      if (rows.length) {
-        await tx.insert(tasks).values(rows).onConflictDoUpdate({
-          target: [tasks.accountId, tasks.externalId],
-          set: {
-            course: sql`excluded.course`, title: sql`excluded.title`, activityUrl: sql`excluded.activity_url`,
-            destination: sql`excluded.destination`, deadlineDate: sql`excluded.deadline_date`,
-            deadlineAt: sql`excluded.deadline_at`,
-          },
-        });
-      }
-      await tx.update(jobs).set({ state: 'completed', summary: 'Tareas actualizadas: ' + rows.length, updatedAt: sql`now()` })
+      const updatedTasks = await upsertCapturedTasks(tx, this.accountId, assignments);
+      await tx.update(jobs).set({ state: 'completed', summary: 'Tareas actualizadas: ' + updatedTasks, updatedAt: sql`now()` })
         .where(and(eq(jobs.accountId, this.accountId), eq(jobs.id, jobId), eq(jobs.state, 'running')));
     });
   }

@@ -11,6 +11,10 @@ La interfaz pública de App Server documenta el inicio de turnos. Queda por iden
 
 Cuando exista un proveedor compatible, conéctalo desde el ensamblaje usando `ASSIGNMENT_FETCHER` y `ASSIGNMENT_SENDER`. Usa la misma cuenta y URL base del periodo para ambos. El proveedor de entrega debe poder leer los bytes autorizados desde Docker con el nombre correcto. La prueba real se hace con una actividad de prueba y la orden de entrega explícita.
 
+## Captura desde el chat
+
+La [demo de captura asistida](../demo-captura-asistida.md) empieza en el chat de Codex. El agente usa el navegador integrado en su sesión y registra la lectura con el comando local. Esta demo deja para otra etapa el despacho visual desde el panel y la entrega automática del PDF.
+
 ## Cómo probar mientras tanto
 
 Sigue la [guía Docker](../desarrollo-docker.md) y arranca el panel con `DEMO_MODE=true`. El panel marca las operaciones como simuladas. La base de datos y los PDF usan los volúmenes del proyecto. Fuera del modo de prueba, la captura informa que el navegador aún no está configurado.

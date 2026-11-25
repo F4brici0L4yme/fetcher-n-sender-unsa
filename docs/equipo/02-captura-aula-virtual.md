@@ -18,6 +18,8 @@ El estudiante pulsa **Buscar tareas** y el worker inicia una sesión del agente 
 
 ## Aceptación y coordinación
 
+Consulta los [pendientes del navegador integrado](navegador-integrado.md) para cerrar la prueba de despacho automático.
+
 - Prueba dos actividades de un curso, una vencida, una abierta sin fecha, un destino externo, una sesión vencida y una búsqueda vacía. Usa un navegador simulado o resultados grabados sin datos personales para las pruebas repetibles.
 - En una cuenta de prueba, documenta un clic en el panel, el turno visual iniciado y la actividad registrada. Si el entorno carece de despacho automático, devuelve el bloqueo explícito y entrega el adaptador probado con simuladores. El despacho sigue siendo requisito para cerrar el piloto.
 - Ejecuta `docker compose exec app npm run build` y `docker compose exec app npm test`. Envía al responsable 01 el nombre del adaptador y sus opciones de configuración para que lo conecte en `bootstrap`. Propón cambios a los contratos por separado.

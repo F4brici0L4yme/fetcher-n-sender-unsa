@@ -34,7 +34,7 @@
       <h2 id="deliver-title">Entrega</h2>
       {{#if task.delivery}}
         <p class="notice" role="status" {{#if task.delivery.active}}data-job-id="{{task.delivery.jobId}}"{{/if}}>
-          <strong>{{task.delivery.label}}</strong>{{#if task.delivery.summary}} · {{task.delivery.summary}}{{/if}}
+          <strong>{{task.delivery.label}}</strong>{{#if task.delivery.detail}} · {{task.delivery.detail}}{{/if}}
         </p>
         {{#if task.delivery.evidence.fileName}}<p>Archivo observado: <strong>{{task.delivery.evidence.fileName}}</strong></p>{{/if}}
       {{/if}}

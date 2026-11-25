@@ -137,4 +137,9 @@ test('panel MVC usa los casos de uso y respeta la autorización y los errores de
   task.delivery.state = 'needs_verification';
   assert.match(await read(path), /El resultado está por verificar/);
   assert.doesNotMatch(await read(path), /name="pdfId"/);
+  task.delivery.state = 'confirmed';
+  task.delivery.pdfId = identifiers.pdf;
+  assert.match(await read(path), /Este PDF ya está entregado/);
+  task.currentPdf = { pdfId: identifiers.oldPdf, originalName: 'informe.pdf', sha256: 'test' };
+  assert.match(await read(path), new RegExp('name="pdfId" value="' + identifiers.oldPdf + '"'));
 });

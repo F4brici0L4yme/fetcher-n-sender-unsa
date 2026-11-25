@@ -249,6 +249,7 @@ test('integración del piloto con PostgreSQL y PDF en disco', async (suite) => {
       await post(href + '/entregas', new URLSearchParams({ pdfId }));
       const confirmation = await waitFor(href, 'Entrega simulada confirmada');
       assert.match(confirmation, /Archivo observado: <strong>demo\.pdf<\/strong>/);
+      assert.match(confirmation, /Este PDF ya está entregado/);
     } finally {
       await app.close();
     }

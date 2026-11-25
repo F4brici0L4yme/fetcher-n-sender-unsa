@@ -23,7 +23,7 @@ function jobView(job: typeof jobs.$inferSelect, delivery: typeof deliveries.$inf
     activityUrl: delivery.observedActivityUrl, visibleStatus: delivery.visibleStatus,
     fileName: delivery.observedFileName ?? undefined, portalReference: delivery.portalReference ?? undefined,
   } : null;
-  return { ...base, kind: 'delivery', state: job.state as DeliveryState, evidence };
+  return { ...base, kind: 'delivery', state: job.state as DeliveryState, evidence, pdfId: delivery?.pdfId };
 }
 
 export class PostgresTaskRepository implements TaskRepository {

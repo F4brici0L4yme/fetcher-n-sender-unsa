@@ -32,7 +32,7 @@ export type DeliveryState = 'authorized' | 'running' | 'confirmed' | 'failed' | 
 
 export type JobView =
   | { jobId: string; kind: 'search'; state: SearchState; summary: string | null }
-  | { jobId: string; kind: 'delivery'; state: DeliveryState; summary: string | null; evidence: DeliveryEvidence | null };
+  | { jobId: string; kind: 'delivery'; state: DeliveryState; summary: string | null; evidence: DeliveryEvidence | null; pdfId?: string };
 
 export interface TaskView extends CapturedAssignment {
   taskId: string;

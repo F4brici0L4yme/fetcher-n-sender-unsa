@@ -37,7 +37,7 @@ La orden de entrega contiene `jobId`, `accountId`, `externalId`, `activityUrl`, 
 ## Puntos de conexión para el equipo
 
 - **02 y 04.** Implementen los puertos de `src/core/application/ports/academic.ts`. El ensamblaje usa `ASSIGNMENT_FETCHER` y `ASSIGNMENT_SENDER`. Para confirmar un envío, devuelvan como evidencia la URL canónica de la actividad, el estado visible y el nombre del PDF que muestra el portal. Si falta evidencia, devuelvan `needs_verification`.
-- **03.** Importa `CoreModule` desde `src/bootstrap/core.module.ts` e inyecta las clases de `src/core/application/tasks.ts` y el token `ACCOUNT_ID`. El núcleo expone `VerificarEntrega` para solicitar una nueva comprobación de solo lectura de un resultado incierto. El entorno de prueba usa el prefijo `/__demo` y deja libres las rutas de la guía 03.
+- **03.** El ensamblaje registra `PanelModule` con `CoreModule`. Sus controladores inyectan los casos de uso y la cuenta local. El núcleo también expone `VerificarEntrega` para solicitar otra comprobación de solo lectura de un resultado incierto. El panel usa las rutas de la guía 03. En modo de prueba, `/__demo` redirige al mismo panel.
 - **Todos.** La [guía Docker](../desarrollo-docker.md) tiene los comandos, las pruebas y el recorrido simulado para verificar la base desde un clon limpio.
 
 ## Implementación de tu rama

@@ -16,6 +16,7 @@ export function presentJob(job: JobView | null, demoMode: boolean) {
   if (!job) return null;
   return {
     ...job,
+    detail: job.state === 'confirmed' && job.summary === 'Entrega confirmada.' ? null : job.summary,
     label: demoMode && job.state === 'confirmed' ? 'Entrega simulada confirmada' : labels[job.state],
     active: job.state === 'queued' || job.state === 'running' || job.state === 'authorized',
   };
@@ -37,6 +38,9 @@ export function presentTask(task: TaskView, demoMode: boolean) {
       : 'Aún no se ha confirmado el canal de entrega.';
   } else if (!task.currentPdf) {
     deliverDisabledReason = 'Carga un PDF para habilitar la entrega.';
+  } else if (task.delivery?.pdfId === task.currentPdf.pdfId) {
+    if (task.delivery.state === 'confirmed') deliverDisabledReason = 'Este PDF ya está entregado.';
+    if (task.delivery.state === 'failed') deliverDisabledReason = 'Carga el PDF de nuevo para autorizar otro intento.';
   }
 
   const url = URL.parse(task.activityUrl);

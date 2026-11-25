@@ -28,6 +28,8 @@ Un panel web local para **Buscar tareas**, abrir una tarea, cargar el PDF termin
 
 ## Aceptación y coordinación
 
+El panel se abre en `/`. En desarrollo, `DEMO_MODE=true` activa los simuladores y deja `/__demo` como acceso anterior al mismo panel. Sigue la [guía Docker](../desarrollo-docker.md) para probarlo.
+
 Prueba con casos de uso simulados el recorrido de búsqueda, carga y autorización. Cubre un PDF inválido, tarea sin fecha, destino no admitido, archivo desactualizado, doble clic y entrega por verificar. La autorización debe enviar al caso de uso el `pdfId` que la vista presentó.
 
 Ejecuta `docker compose exec app npm run build` y `docker compose exec app npm test`. Indica al responsable 01 qué módulo exportas y qué dependencias inyecta. Mantén cambios de configuración raíz y ensamblaje en su rama.

@@ -5,7 +5,7 @@ import { CapturedAssignment, CaptureResult, Destination } from '../../core/domai
 export interface VisualCaptureRequest {
   jobId: string;
   accountId: string;
-  portalOrigin: string;
+  portalUrl: string;
   readOnly: true;
 }
 
@@ -14,7 +14,7 @@ export interface VisualCaptureRunner {
 }
 
 export interface AulaVirtualFetcherOptions {
-  portalOrigin: string;
+  portalUrl: string;
   accountId: string;
   runner: VisualCaptureRunner | null;
   clock?: () => Date;
@@ -30,12 +30,13 @@ function requiredText(value: unknown): string {
   return value.trim();
 }
 
-function parseAssignment(value: unknown, portalOrigin: string): CapturedAssignment {
+function parseAssignment(value: unknown, portalUrl: string): CapturedAssignment {
   const data = record(value);
   if (!data) throw new Error('Invalid assignment');
   const url = new URL(requiredText(data.activityUrl));
-  if (url.origin !== portalOrigin || url.protocol !== 'https:' || url.username || url.password
-    || !url.pathname.startsWith('/mod/assign/')) throw new Error('Unexpected activity URL');
+  const expected = new URL('mod/assign/view.php', portalUrl);
+  if (url.origin !== expected.origin || url.protocol !== 'https:' || url.username || url.password
+    || url.pathname !== expected.pathname || !url.searchParams.has('id')) throw new Error('Unexpected activity URL');
   if (data.deadline !== null && typeof data.deadline !== 'string') throw new Error('Invalid deadline');
   if (typeof data.destination !== 'string'
     || !['aula_virtual', 'other', 'unknown'].includes(data.destination)) throw new Error('Invalid destination');
@@ -51,15 +52,19 @@ function parseAssignment(value: unknown, portalOrigin: string): CapturedAssignme
 }
 
 export class AulaVirtualFetcher implements AssignmentFetcher {
-  private readonly portalOrigin: string;
+  private readonly portalUrl: string;
   private readonly clock: () => Date;
 
   constructor(private readonly options: AulaVirtualFetcherOptions) {
-    const portal = new URL(options.portalOrigin);
-    if (portal.protocol !== 'https:' || portal.origin !== options.portalOrigin || portal.username || portal.password) {
-      throw new Error('Aula Virtual portalOrigin must be an HTTPS origin');
+    const portal = new URL(options.portalUrl);
+    if (portal.protocol !== 'https:' || portal.username || portal.password || portal.pathname.startsWith('//')) {
+      throw new Error('Aula Virtual portalUrl must be an HTTPS URL');
     }
-    this.portalOrigin = portal.origin;
+    const basePath = portal.pathname.endsWith('/') ? portal.pathname : `${portal.pathname}/`;
+    portal.pathname = basePath;
+    portal.search = '';
+    portal.hash = '';
+    this.portalUrl = portal.href;
     this.clock = options.clock ?? (() => new Date());
   }
 
@@ -69,7 +74,7 @@ export class AulaVirtualFetcher implements AssignmentFetcher {
 
     try {
       const response = record(await this.options.runner.capture({
-        jobId: order.jobId, accountId: order.accountId, portalOrigin: this.portalOrigin, readOnly: true,
+        jobId: order.jobId, accountId: order.accountId, portalUrl: this.portalUrl, readOnly: true,
       }));
       if (!response) return { kind: 'failed' };
       if (response.kind === 'session_expired' || response.kind === 'unavailable' || response.kind === 'failed') {
@@ -78,7 +83,7 @@ export class AulaVirtualFetcher implements AssignmentFetcher {
       if (response.kind !== 'success' || response.observedAccountId !== order.accountId
         || !Array.isArray(response.assignments)) return { kind: 'failed' };
       const now = this.clock();
-      const assignments = response.assignments.map((item) => parseAssignment(item, this.portalOrigin))
+      const assignments = response.assignments.map((item) => parseAssignment(item, this.portalUrl))
         .filter((item) => visibleDeadline(item.deadline, now));
       return { kind: 'success', assignments };
     } catch {

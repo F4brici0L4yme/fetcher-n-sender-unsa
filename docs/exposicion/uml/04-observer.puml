@@ -1,0 +1,32 @@
+@startuml
+skinparam dpi 160
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 15
+skinparam shadowing false
+skinparam ArrowColor #475569
+hide footbox
+title Observer · Actualizar la bandeja abierta
+
+participant "Importación\nCLI + repositorio" as cli #EFF6FF
+database "PostgreSQL" as pg #FFF7ED
+participant "PostgresTaskChanges\nTaskChanges" as observer #FFF7ED
+control "PanelController\nPanelAssistedCapture" as web #EFF6FF
+participant "Panel abierto\nEventSource" as browser #FDF2F8
+
+browser -> web : GET /eventos/tareas
+web -> observer : subscribe(onChange, onClose)
+observer -> pg : LISTEN fetcher_tasks_changed
+
+cli -> pg : Guardar tareas y trabajo\npg_notify dentro de la transacción
+cli -> pg : COMMIT
+pg ->> observer : Notificación de la cuenta
+observer -> web : onChange()
+web -> pg : Consulta la revisión vía el caso de uso
+pg --> web : Identificador de la revisión
+web -->> browser : SSE tasks-version(revision)
+
+opt La revisión cambió
+  browser -> web : GET / automático
+  web --> browser : HTML con las tareas actualizadas
+end
+@enduml

@@ -13,6 +13,7 @@ export interface JobRepository {
   queueSearch(accountId: string): Promise<string>;
   authorizeDelivery(accountId: string, taskId: string, pdfId: string): Promise<string>;
   requestVerification(accountId: string, jobId: string): Promise<void>;
+  discardDelivery(accountId: string, taskId: string, jobId: string): Promise<{ proofStorageKey: string | null }>;
   find(accountId: string, jobId: string): Promise<JobView | null>;
 }
 

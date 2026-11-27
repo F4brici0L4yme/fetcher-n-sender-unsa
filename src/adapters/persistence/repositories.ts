@@ -10,7 +10,7 @@ import {
 import * as schema from './schema';
 import { TASK_CHANGES_CHANNEL } from './task-changes';
 
-const { tasks, pdfs, jobs, deliveries, accountRevisions } = schema;
+const { tasks, pdfs, jobs, deliveries, accountRevisions, agentDeliveryProposals } = schema;
 type Database = NodePgDatabase<typeof schema>;
 
 export function postgresDatabase(pool: Pool): Database {
@@ -23,6 +23,8 @@ function jobView(job: typeof jobs.$inferSelect, delivery: typeof deliveries.$inf
   const evidence = delivery?.observedActivityUrl && delivery.visibleStatus ? {
     activityUrl: delivery.observedActivityUrl, visibleStatus: delivery.visibleStatus,
     fileName: delivery.observedFileName ?? undefined, portalReference: delivery.portalReference ?? undefined,
+    proofKey: delivery.proofStorageKey ?? undefined,
+    capturedAt: delivery.proofCapturedAt ? new Date(delivery.proofCapturedAt).toISOString() : undefined,
   } : null;
   return { ...base, kind: 'delivery', state: job.state as DeliveryState, evidence, pdfId: delivery?.pdfId };
 }
@@ -178,6 +180,49 @@ export class PostgresJobRepository implements JobRepository, SearchHistory {
     if (!job) throw new ApplicationError('delivery_not_uncertain', 'La entrega no está por verificar.');
   }
 
+  async discardDelivery(accountId: string, taskId: string, jobId: string): Promise<{ proofStorageKey: string | null }> {
+    return this.db.transaction(async (tx) => {
+      const [task] = await tx.select({ id: tasks.id }).from(tasks)
+        .where(and(eq(tasks.id, taskId), eq(tasks.accountId, accountId)))
+        .for('update');
+      if (!task) throw new ApplicationError('not_found', 'La tarea no existe.');
+
+      // Lock strictly in tasks -> jobs -> deliveries order to avoid deadlocks with settleDelivery.
+      const [job] = await tx.select().from(jobs)
+        .where(and(eq(jobs.id, jobId), eq(jobs.accountId, accountId), eq(jobs.kind, 'delivery')))
+        .for('update');
+      if (!job) throw new ApplicationError('not_found', 'El intento de entrega no existe.');
+
+      const [delivery] = await tx.select().from(deliveries)
+        .where(and(eq(deliveries.jobId, jobId), eq(deliveries.taskId, taskId)))
+        .for('update');
+      if (!delivery) throw new ApplicationError('not_found', 'El intento de entrega no existe.');
+
+      if (job.state === 'confirmed') {
+        throw new ApplicationError('delivery_confirmed', 'No se puede eliminar una entrega ya confirmada.');
+      }
+      if (job.state === 'authorized' || job.state === 'running') {
+        throw new ApplicationError('delivery_active', 'Espera a que termine el intento en curso antes de descartarlo.');
+      }
+      if (job.state === 'needs_verification') {
+        const lockResult = await tx.execute<{ locked: boolean }>(
+          sql`select pg_try_advisory_xact_lock(hashtextextended('fetcher-worker:' || ${accountId}, 0)) as locked`,
+        );
+        if (!lockResult.rows[0]?.locked) {
+          throw new ApplicationError('delivery_active', 'Espera a que termine el intento en curso antes de descartarlo.');
+        }
+      }
+
+      await tx.update(agentDeliveryProposals)
+        .set({ deliveryJobId: null, updatedAt: sql`now()` })
+        .where(eq(agentDeliveryProposals.deliveryJobId, jobId));
+      await tx.delete(deliveries).where(eq(deliveries.jobId, jobId));
+      await tx.delete(jobs).where(and(eq(jobs.id, jobId), eq(jobs.accountId, accountId)));
+
+      return { proofStorageKey: delivery.proofStorageKey ?? null };
+    });
+  }
+
   async latestSearch(accountId: string): Promise<Extract<JobView, { kind: 'search' }> | null> {
     const [job] = await this.db.select().from(jobs)
       .where(and(eq(jobs.accountId, accountId), eq(jobs.kind, 'search')))
@@ -285,6 +330,7 @@ class PostgresWorkerSession implements WorkerSession {
         await tx.update(deliveries).set({
           observedActivityUrl: evidence.activityUrl, visibleStatus: evidence.visibleStatus,
           observedFileName: evidence.fileName ?? null, portalReference: evidence.portalReference ?? null,
+          proofStorageKey: evidence.proofKey ?? null, proofCapturedAt: evidence.capturedAt ?? null,
         }).where(eq(deliveries.jobId, job.id));
       }
     });

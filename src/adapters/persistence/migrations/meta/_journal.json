@@ -15,6 +15,13 @@
       "when": 1795647708417,
       "tag": "0001_personal_notes_sessions_revisions",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795677600000,
+      "tag": "0002_agent_automation_and_proofs",
+      "breakpoints": true
     }
   ]
 }

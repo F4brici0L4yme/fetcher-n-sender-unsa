@@ -1,5 +1,5 @@
 import { CapturedAssignment } from '../domain/model';
-import { AssignmentImportRepository } from './ports/persistence';
+import { AccountRevisionRepository, AssignmentImportRepository } from './ports/persistence';
 
 export class ImportarTareasObservadas {
   constructor(private readonly imports: AssignmentImportRepository) {}
@@ -14,5 +14,13 @@ export class ConsultarRevisionTareas {
 
   execute(accountId: string) {
     return this.imports.latestCompletedSearchId(accountId);
+  }
+}
+
+export class ConsultarRevisionCuenta {
+  constructor(private readonly revisions: AccountRevisionRepository) {}
+
+  execute(accountId: string) {
+    return this.revisions.currentRevision(accountId);
   }
 }

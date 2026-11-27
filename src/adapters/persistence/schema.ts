@@ -74,3 +74,11 @@ export const deliveries = pgTable('deliveries', {
   unique().on(table.taskId, table.pdfId),
   foreignKey({ columns: [table.taskId, table.pdfId], foreignColumns: [pdfs.taskId, pdfs.id] }),
 ]);
+
+export * from './schema-notes';
+export * from './schema-sessions';
+
+export const accountRevisions = pgTable('account_revisions', {
+  accountId: text('account_id').primaryKey(),
+  revision: bigint('revision', { mode: 'bigint' }).notNull().default(sql`0`),
+});

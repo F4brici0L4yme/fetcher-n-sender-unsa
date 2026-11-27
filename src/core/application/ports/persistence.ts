@@ -25,6 +25,10 @@ export interface AssignmentImportRepository {
   latestCompletedSearchId(accountId: string): Promise<string | null>;
 }
 
+export interface AccountRevisionRepository {
+  currentRevision(accountId: string): Promise<string>;
+}
+
 export interface TaskChanges {
   subscribe(onChange: () => void, onClose: () => void): () => void;
 }

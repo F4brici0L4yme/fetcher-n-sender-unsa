@@ -4,54 +4,355 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{task.title}} · Aula Virtual</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="/assets/panel.css">
   <script src="/assets/panel.js" defer></script>
 </head>
 <body>
-  <header class="site-header"><div class="shell"><a href="/" class="brand">Aula Virtual</a></div></header>
-  <main class="shell main">
-    <a href="/" class="back">Volver a tareas</a>
-    {{#if demoMode}}<p class="notice">Modo de prueba. La entrega es simulada.</p>{{/if}}
-    <h1>{{task.title}}</h1>
-    <dl class="details">
-      <div><dt>Curso</dt><dd>{{task.course}}</dd></div>
-      <div><dt>Plazo</dt><dd>{{task.deadlineLabel}}</dd></div>
-      <div><dt>Canal</dt><dd>{{task.destinationLabel}}{{#if task.destinationUrl}} · <a href="{{task.destinationUrl}}">Abrir actividad</a>{{/if}}</dd></div>
-    </dl>
-    {{#unless assistedCapture}}
-    <section class="card" aria-labelledby="pdf-title">
-      <h2 id="pdf-title">PDF terminado</h2>
-      {{#if task.currentPdf}}<p>PDF vigente: <strong>{{task.currentPdf.originalName}}</strong></p>{{/if}}
-      <form method="post" action="/tareas/{{task.taskId}}/pdf" enctype="multipart/form-data">
-        <label for="pdf">Selecciona un PDF de hasta 20 MiB</label>
-        <div class="form-actions">
-          <input id="pdf" type="file" name="pdf" accept="application/pdf,.pdf" {{#if uploadError}}aria-invalid="true" aria-describedby="upload-error"{{/if}} required>
-          <button type="submit" class="secondary">Cargar PDF</button>
+  <a href="#main-content" class="skip-link">Ir al contenido principal</a>
+  <div class="workspace">
+    <header class="mobile-bar">
+      <a href="/" class="brand-lockup">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h8M8 11h5"/></svg>
+        </span>
+        <span class="brand-text">
+          <span class="brand-name">Aula Virtual</span>
+          <span class="brand-sub">UNSA · Local</span>
+        </span>
+      </a>
+      <button type="button" class="btn btn-secondary btn-icon" data-nav-toggle aria-expanded="false" aria-controls="workspace-sidebar" aria-label="Abrir navegación">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+    </header>
+
+    <aside id="workspace-sidebar" class="sidebar" aria-label="Navegación del panel">
+      <div class="sidebar-top">
+        <a href="/" class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h8M8 11h5"/></svg>
+          </span>
+          <span class="brand-text">
+            <span class="brand-name">Aula Virtual</span>
+            <span class="brand-sub">UNSA · Local</span>
+          </span>
+        </a>
+      </div>
+
+      <div id="sidebar-dynamic" class="sidebar-body">
+        <nav class="sidebar-nav" aria-label="Vistas principales">
+          <a href="/" class="nav-item">
+            <span class="nav-item-main">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+              <span>Agenda</span>
+            </span>
+          </a>
+          <a href="/?vista=tareas" class="nav-item is-active" aria-current="page">
+            <span class="nav-item-main">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+              <span>Tareas DUTIC</span>
+            </span>
+            {{#if sidebar.hasTaskCount}}<span class="nav-count">{{sidebar.taskCount}}</span>{{/if}}
+          </a>
+          {{#if sidebar.notesEnabled}}
+            <a href="/?vista=notas" class="nav-item">
+              <span class="nav-item-main">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                <span>Mis Notas</span>
+              </span>
+              {{#if sidebar.hasNoteCount}}<span class="nav-count">{{sidebar.noteCount}}</span>{{/if}}
+            </a>
+          {{/if}}
+          <a href="/?vista=completadas" class="nav-item">
+            <span class="nav-item-main">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg>
+              <span>Completadas</span>
+            </span>
+            {{#if sidebar.hasCompletedCount}}<span class="nav-count">{{sidebar.completedCount}}</span>{{/if}}
+          </a>
+          {{#if sidebar.agentEnabled}}
+            <a href="/agente" class="nav-item">
+              <span class="nav-item-main">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 18v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M3 12h3M18 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/><circle cx="12" cy="12" r="3"/></svg>
+                <span>Agente · Harness</span>
+              </span>
+              {{#if sidebar.hasProposalCount}}
+                <span class="nav-count nav-count--alert">{{sidebar.proposalCount}}</span>
+              {{else}}
+                {{#if sidebar.session.isConnected}}<span class="status-dot status-dot--success" aria-hidden="true"></span>{{/if}}
+              {{/if}}
+            </a>
+          {{/if}}
+          {{#if sidebar.sessionEnabled}}
+            <a href="/sesion" class="nav-item">
+              <span class="nav-item-main">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+                <span>Sesión DUTIC</span>
+              </span>
+              <span class="status-dot status-dot--{{sidebar.session.tone}}" aria-hidden="true"></span>
+            </a>
+          {{/if}}
+        </nav>
+
+        <div class="sidebar-footer">
+          {{#if sidebar.session}}
+            <a href="/sesion" class="session-pill session-pill--{{sidebar.session.tone}}">
+              <span class="session-pill-row">
+                <span class="status-dot status-dot--{{sidebar.session.tone}}" aria-hidden="true"></span>
+                <span class="session-pill-title">{{sidebar.session.stateLabel}}</span>
+              </span>
+              <span class="session-pill-sub">{{#if sidebar.session.isConnected}}{{accountId}}{{else}}Configurar acceso{{/if}}</span>
+            </a>
+          {{else}}
+            <div class="session-pill session-pill--neutral">
+              <span class="session-pill-row">
+                <span class="status-dot status-dot--neutral" aria-hidden="true"></span>
+                <span class="session-pill-title">{{#if demoMode}}Modo de prueba{{else}}{{#if assistedCapture}}Captura asistida{{else}}Espacio local{{/if}}{{/if}}</span>
+              </span>
+              <span class="session-pill-sub">{{accountId}}</span>
+            </div>
+          {{/if}}
+          {{#if sidebar.liveActive}}
+            <div id="sse-status-pill" class="live-indicator">
+              <span class="live-pulse" aria-hidden="true"></span>
+              <span>En vivo · SSE{{#if sidebar.autoSync.enabled}} · {{sidebar.autoSync.shortLabel}}{{/if}}</span>
+            </div>
+          {{/if}}
         </div>
-        {{#if uploadError}}<p id="upload-error" class="error" role="alert">{{uploadError}}</p>{{/if}}
-      </form>
-    </section>
-    <section class="card" aria-labelledby="deliver-title">
-      <h2 id="deliver-title">Entrega</h2>
-      {{#if task.delivery}}
-        <p class="notice" role="status" {{#if task.delivery.active}}data-job-id="{{task.delivery.jobId}}"{{/if}}>
-          <strong>{{task.delivery.label}}</strong>{{#if task.delivery.detail}} · {{task.delivery.detail}}{{/if}}
-        </p>
-        {{#if task.delivery.evidence.fileName}}<p>Archivo observado: <strong>{{task.delivery.evidence.fileName}}</strong></p>{{/if}}
-      {{/if}}
-      {{#if deliveryError}}<p class="error" role="alert">{{deliveryError}}</p>{{/if}}
-      {{#if task.deliverDisabledReason}}
-        <p class="muted">{{task.deliverDisabledReason}}</p>
-        <button type="button" disabled>Autorizar y entregar</button>
-      {{else}}
-        <form method="post" action="/tareas/{{task.taskId}}/entregas">
-          <p>Enviar <strong>{{task.currentPdf.originalName}}</strong> a esta actividad de Aula Virtual.</p>
-          <input type="hidden" name="pdfId" value="{{task.currentPdf.pdfId}}">
-          <button type="submit">Autorizar y entregar</button>
-        </form>
-      {{/if}}
-    </section>
-    {{/unless}}
-  </main>
+      </div>
+    </aside>
+    <div class="sidebar-backdrop" data-nav-backdrop hidden></div>
+
+    <main id="main-content" class="workspace-main" tabindex="-1" {{#if liveRevision}}data-live-revision="{{liveRevision}}"{{/if}}>
+      <div id="panel-live-status" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+      <div class="content-container">
+        <nav aria-label="Ruta de navegación" class="breadcrumb-nav">
+          <a href="/" class="back-link">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+            <span>Volver a la agenda</span>
+          </a>
+        </nav>
+
+        {{#if demoMode}}
+          <div class="mode-banner" role="status">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <p>Modo de prueba. La entrega es simulada.</p>
+          </div>
+        {{/if}}
+
+        <div id="panel-dynamic-content">
+          <header class="detail-header">
+            <div class="detail-header-top">
+              <span class="eyebrow">Actividad de Aula Virtual</span>
+              <span class="badge badge--{{task.statusTone}}">{{task.statusLabel}}</span>
+            </div>
+            <h1>{{task.title}}</h1>
+          </header>
+
+          <dl class="meta-strip">
+            <div class="meta-cell">
+              <dt>Curso</dt>
+              <dd>{{task.course}}</dd>
+            </div>
+            <div class="meta-cell">
+              <dt>Plazo</dt>
+              <dd class="mono-value">{{#if task.deadline}}<time datetime="{{task.deadline}}">{{task.deadlineLabel}}</time>{{else}}{{task.deadlineLabel}}{{/if}}</dd>
+            </div>
+            <div class="meta-cell">
+              <dt>Canal</dt>
+              <dd>
+                <span>{{task.destinationLabel}}</span>
+                {{#if task.destinationUrl}}
+                  · <a href="{{task.destinationUrl}}" target="_blank" rel="noopener noreferrer" class="inline-link">Abrir actividad</a>
+                {{/if}}
+              </dd>
+            </div>
+          </dl>
+
+          {{#if assistedCapture}}
+            <section class="sheet-card" aria-label="Modo de captura asistida">
+              <p class="muted-note">La captura asistida solo registra las tareas capturadas. La carga de PDF y la entrega están deshabilitadas en este modo.</p>
+            </section>
+          {{/if}}
+
+          {{#unless assistedCapture}}
+            <section class="sheet-card step-card" aria-labelledby="pdf-title">
+              <div class="step-card-header">
+                <span class="step-badge" aria-hidden="true">1</span>
+                <div>
+                  <h2 id="pdf-title">Archivo PDF autorizado</h2>
+                  <p class="step-subtitle">Verifica el archivo local que será asociado a esta actividad antes de autorizar el envío.</p>
+                </div>
+              </div>
+
+              {{#if task.currentPdf}}
+                <div class="pdf-current-box">
+                  <div class="pdf-current-info">
+                    <svg class="icon pdf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+                    <div>
+                      <p class="pdf-current-name">PDF vigente: <strong>{{task.currentPdf.originalName}}</strong></p>
+                      {{#if task.shortSha256}}
+                        <span class="checksum-pill">sha256: {{task.shortSha256}} · Verificado</span>
+                      {{/if}}
+                    </div>
+                  </div>
+                </div>
+              {{/if}}
+
+              <form method="post" action="/tareas/{{task.taskId}}/pdf" enctype="multipart/form-data" class="upload-form">
+                <input type="hidden" name="accountId" value="{{accountId}}">
+                <label for="pdf" class="field-label">Selecciona un PDF de hasta 20 MiB</label>
+                <div class="file-dropzone">
+                  <div class="file-dropzone-copy">
+                    <input id="pdf" type="file" name="pdf" accept="application/pdf,.pdf" {{#if uploadError}}aria-invalid="true" aria-describedby="upload-error"{{/if}} required>
+                    <p class="file-selected-name" data-file-label>Ningún archivo nuevo seleccionado</p>
+                  </div>
+                  <button type="submit" class="btn btn-secondary">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5M12 3v12"/></svg>
+                    <span>Cargar PDF</span>
+                  </button>
+                </div>
+                {{#if uploadError}}<p id="upload-error" class="field-error" role="alert">{{uploadError}}</p>{{/if}}
+              </form>
+            </section>
+
+            <section class="sheet-card step-card" aria-labelledby="deliver-title">
+              <div class="step-card-header">
+                <span class="step-badge" aria-hidden="true">2</span>
+                <div>
+                  <h2 id="deliver-title">Autorización explícita de entrega</h2>
+                  <p class="step-subtitle">Ningún archivo se envía automáticamente sin tu autorización. Confirma la orden cuando el PDF vigente sea el definitivo.</p>
+                </div>
+              </div>
+
+              <ol class="delivery-stepper" aria-label="Progreso de entrega">
+                {{#each task.stepper}}
+                  <li class="stepper-item stepper-item--{{state}}">
+                    <span class="stepper-node" aria-hidden="true"></span>
+                    <span class="stepper-label">{{label}}</span>
+                  </li>
+                {{/each}}
+              </ol>
+
+              {{#if task.delivery}}
+                <div class="status-strip status-strip--{{task.delivery.tone}}" role="status" {{#if task.delivery.active}}data-job-id="{{task.delivery.jobId}}"{{/if}}>
+                  <span class="status-dot status-dot--{{task.delivery.tone}}" aria-hidden="true"></span>
+                  <p><strong>{{task.delivery.label}}</strong>{{#if task.delivery.detail}} · {{task.delivery.detail}}{{/if}}</p>
+                </div>
+                {{#if task.delivery.evidence}}
+                  <div class="evidence-receipt">
+                    <div class="evidence-receipt-grid">
+                      <div class="evidence-details">
+                        <p class="evidence-heading">Evidencia observada en DUTIC</p>
+                        {{#if task.delivery.evidence.fileName}}
+                          <p class="evidence-line">Archivo observado: <strong>{{task.delivery.evidence.fileName}}</strong></p>
+                        {{/if}}
+                        {{#if task.delivery.evidence.visibleStatus}}
+                          <p class="evidence-line">Estado visible: <strong>{{task.delivery.evidence.visibleStatus}}</strong></p>
+                        {{/if}}
+                        {{#if task.capturedAtLabel}}
+                          <p class="evidence-line">Capturado: <span class="mono-inline">{{task.capturedAtLabel}}</span></p>
+                        {{/if}}
+                        {{#if task.delivery.evidence.portalReference}}
+                          <p class="evidence-line">Referencia: <code class="mono-inline">{{task.delivery.evidence.portalReference}}</code></p>
+                        {{/if}}
+                      </div>
+                      {{#if task.proofUrl}}
+                        <div class="evidence-proof-preview">
+                          <div class="proof-frame">
+                            <img src="{{task.proofUrl}}" alt="Captura verificada de entrega en DUTIC para {{task.title}}">
+                          </div>
+                          <div class="proof-frame-actions">
+                            <button
+                              type="button"
+                              class="btn btn-secondary btn-sm"
+                              data-proof-open="{{task.proofUrl}}"
+                              data-proof-download="{{task.proofDownloadUrl}}"
+                              data-proof-title="{{task.title}}"
+                              data-proof-meta="{{task.course}}{{#if task.delivery.evidence.fileName}} · {{task.delivery.evidence.fileName}}{{/if}}{{#if task.delivery.evidence.visibleStatus}} · {{task.delivery.evidence.visibleStatus}}{{/if}}"
+                            >Ampliar captura</button>
+                            <a href="{{task.proofDownloadUrl}}" class="btn btn-secondary btn-sm">Descargar PNG</a>
+                          </div>
+                        </div>
+                      {{/if}}
+                    </div>
+                  </div>
+                {{/if}}
+              {{/if}}
+
+              {{#if deliveryError}}<p class="field-error" role="alert">{{deliveryError}}</p>{{/if}}
+
+              {{#if task.canVerify}}
+                <div class="delivery-actions-row">
+                  <form method="post" action="/tareas/{{task.taskId}}/entregas/{{task.delivery.jobId}}/verificar" class="verify-form">
+                    <input type="hidden" name="accountId" value="{{accountId}}">
+                    <button type="submit" class="btn btn-secondary">Verificar estado en DUTIC (solo lectura)</button>
+                  </form>
+                  {{#if task.canDiscardDelivery}}
+                    <form method="post" action="/tareas/{{task.taskId}}/entregas/{{task.delivery.jobId}}/eliminar" class="discard-form">
+                      <input type="hidden" name="accountId" value="{{accountId}}">
+                      <button type="submit" class="btn btn-danger-outline">Eliminar intento y volver a intentar</button>
+                    </form>
+                  {{/if}}
+                </div>
+              {{else}}
+                {{#if task.canDiscardDelivery}}
+                  <div class="delivery-actions-row">
+                    <form method="post" action="/tareas/{{task.taskId}}/entregas/{{task.delivery.jobId}}/eliminar" class="discard-form">
+                      <input type="hidden" name="accountId" value="{{accountId}}">
+                      <button type="submit" class="btn btn-danger-outline">Eliminar intento y volver a intentar</button>
+                    </form>
+                  </div>
+                {{/if}}
+              {{/if}}
+
+              {{#if task.deliverDisabledReason}}
+                <div class="disabled-reason-box">
+                  <p class="muted-note">{{task.deliverDisabledReason}}</p>
+                  <button type="button" class="btn btn-primary" disabled>Autorizar y entregar</button>
+                </div>
+              {{else}}
+                <div class="security-ribbon">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+                  <p>Esta acción autoriza el envío del PDF exacto verificado por huella criptográfica en esta actividad.</p>
+                </div>
+                <form method="post" action="/tareas/{{task.taskId}}/entregas" class="authorize-form">
+                  <p class="authorize-summary">Enviar <strong>{{task.currentPdf.originalName}}</strong> a esta actividad de Aula Virtual.</p>
+                  <input type="hidden" name="accountId" value="{{accountId}}">
+                  <input type="hidden" name="pdfId" value="{{task.currentPdf.pdfId}}">
+                  <button type="submit" class="btn btn-primary">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                    <span>Autorizar y entregar</span>
+                  </button>
+                </form>
+              {{/if}}
+            </section>
+          {{/unless}}
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="proof-lightbox" class="proof-dialog" aria-labelledby="proof-dialog-title">
+    <div class="proof-dialog-header">
+      <div>
+        <p class="eyebrow">Comprobante visual de DUTIC</p>
+        <h2 id="proof-dialog-title">Captura de entrega</h2>
+        <p class="proof-dialog-meta" data-proof-meta-target></p>
+      </div>
+      <button type="button" class="btn btn-ghost btn-icon" data-proof-close aria-label="Cerrar vista ampliada">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="proof-dialog-body">
+      <img src="" alt="Captura verificada de entrega en Aula Virtual" data-proof-image>
+    </div>
+    <div class="proof-dialog-footer">
+      <a href="#" class="btn btn-secondary" data-proof-download-link>Descargar PNG</a>
+      <button type="button" class="btn btn-primary" data-proof-close>Cerrar</button>
+    </div>
+  </dialog>
 </body>
 </html>

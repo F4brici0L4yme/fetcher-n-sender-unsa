@@ -93,6 +93,27 @@ test('panel MVC usa los casos de uso y respeta la autorización y los errores de
   const initial = await read('/');
   assert.ok(initial.indexOf('Informe con plazo') < initial.indexOf('Sin fecha'));
   assert.match(initial, /Sin fecha[\s\S]*Informe de prueba/);
+  assert.match(initial, /aria-label="Vistas principales"/);
+  assert.match(initial, /href="\/\?vista=tareas"/);
+  assert.match(initial, /href="\/\?vista=completadas"/);
+
+  const tasksTab = await read('/?vista=tareas');
+  assert.match(tasksTab, /<h1>Tareas DUTIC<\/h1>/);
+  assert.match(tasksTab, /Informe con plazo/);
+  assert.match(tasksTab, /Informe de prueba/);
+
+  const emptyCompletedTab = await read('/?vista=completadas');
+  assert.match(emptyCompletedTab, /<h1>Completadas<\/h1>/);
+  assert.match(emptyCompletedTab, /Sin elementos completados/);
+
+  const sessionRedirect = await fetch(base + '/?vista=sesion', { redirect: 'manual' });
+  assert.equal(sessionRedirect.status, 302);
+  assert.equal(sessionRedirect.headers.get('location'), '/sesion');
+
+  const sessionPage = await read('/sesion');
+  assert.match(sessionPage, /<h1>Sesión DUTIC<\/h1>/);
+  assert.match(sessionPage, /Sesión personal no activa en este modo/);
+
   const rejected = await post('/busquedas', undefined, { Origin: 'https://otro.example', 'Sec-Fetch-Site': 'cross-site' });
   assert.equal(rejected.status, 403);
   const started = await post('/busquedas');
@@ -139,7 +160,14 @@ test('panel MVC usa los casos de uso y respeta la autorización y los errores de
   assert.doesNotMatch(await read(path), /name="pdfId"/);
   task.delivery.state = 'confirmed';
   task.delivery.pdfId = identifiers.pdf;
-  assert.match(await read(path), /Este PDF ya está entregado/);
+  const confirmedTaskHtml = await read(path);
+  assert.match(confirmedTaskHtml, /Este PDF ya está entregado/);
+  assert.match(confirmedTaskHtml, /sha256: test/);
+  assert.match(confirmedTaskHtml, /Progreso de entrega/);
+  const completedArchive = await read('/?vista=completadas');
+  assert.match(completedArchive, /Informe de prueba/);
+  const agendaWithConfirmed = await read('/');
+  assert.match(agendaWithConfirmed, /Completadas[\s\S]*Informe de prueba/);
   task.currentPdf = { pdfId: identifiers.oldPdf, originalName: 'informe.pdf', sha256: 'test' };
   assert.match(await read(path), new RegExp('name="pdfId" value="' + identifiers.oldPdf + '"'));
 });

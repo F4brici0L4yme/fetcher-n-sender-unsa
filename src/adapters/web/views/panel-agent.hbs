@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agente · Harness · Aula Virtual</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/assets/panel.css">
+  <script src="/assets/panel.js" defer></script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Ir al contenido principal</a>
+  <div class="workspace">
+    <header class="mobile-bar">
+      <a href="/" class="brand-lockup">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h8M8 11h5"/></svg>
+        </span>
+        <span class="brand-text">
+          <span class="brand-name">Aula Virtual</span>
+          <span class="brand-sub">UNSA · Local</span>
+        </span>
+      </a>
+      <button type="button" class="btn btn-secondary btn-icon" data-nav-toggle aria-expanded="false" aria-controls="workspace-sidebar" aria-label="Abrir navegación">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+    </header>
+
+    <aside id="workspace-sidebar" class="sidebar" aria-label="Navegación del panel">
+      <div class="sidebar-top">
+        <a href="/" class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h8M8 11h5"/></svg>
+          </span>
+          <span class="brand-text">
+            <span class="brand-name">Aula Virtual</span>
+            <span class="brand-sub">UNSA · Local</span>
+          </span>
+        </a>
+      </div>
+
+      <div id="sidebar-dynamic" class="sidebar-body">
+        <nav class="sidebar-nav" aria-label="Vistas principales">
+          <a href="/" class="nav-item">
+            <span class="nav-item-main">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+              <span>Agenda</span>
+            </span>
+          </a>
+          <a href="/?vista=tareas" class="nav-item">
+            <span class="nav-item-main">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+              <span>Tareas DUTIC</span>
+            </span>
+            {{#if sidebar.hasTaskCount}}<span class="nav-count">{{sidebar.taskCount}}</span>{{/if}}
+          </a>
+          {{#if sidebar.notesEnabled}}
+            <a href="/?vista=notas" class="nav-item">
+              <span class="nav-item-main">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                <span>Mis Notas</span>
+              </span>
+              {{#if sidebar.hasNoteCount}}<span class="nav-count">{{sidebar.noteCount}}</span>{{/if}}
+            </a>
+          {{/if}}
+          <a href="/?vista=completadas" class="nav-item">
+            <span class="nav-item-main">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg>
+              <span>Completadas</span>
+            </span>
+            {{#if sidebar.hasCompletedCount}}<span class="nav-count">{{sidebar.completedCount}}</span>{{/if}}
+          </a>
+          <a href="/agente" class="nav-item is-active" aria-current="page">
+            <span class="nav-item-main">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 18v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M3 12h3M18 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/><circle cx="12" cy="12" r="3"/></svg>
+              <span>Agente · Harness</span>
+            </span>
+            {{#if sidebar.hasProposalCount}}
+              <span class="nav-count nav-count--alert">{{sidebar.proposalCount}}</span>
+            {{else}}
+              {{#if sidebar.session.isConnected}}<span class="status-dot status-dot--success" aria-hidden="true"></span>{{/if}}
+            {{/if}}
+          </a>
+          {{#if sidebar.sessionEnabled}}
+            <a href="/sesion" class="nav-item">
+              <span class="nav-item-main">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+                <span>Sesión DUTIC</span>
+              </span>
+              <span class="status-dot status-dot--{{sidebar.session.tone}}" aria-hidden="true"></span>
+            </a>
+          {{/if}}
+        </nav>
+
+        <div class="sidebar-footer">
+          {{#if sidebar.session}}
+            <a href="/sesion" class="session-pill session-pill--{{sidebar.session.tone}}">
+              <span class="session-pill-row">
+                <span class="status-dot status-dot--{{sidebar.session.tone}}" aria-hidden="true"></span>
+                <span class="session-pill-title">{{sidebar.session.stateLabel}}</span>
+              </span>
+              <span class="session-pill-sub">{{#if sidebar.session.isConnected}}{{accountId}}{{else}}Configurar acceso{{/if}}</span>
+            </a>
+          {{else}}
+            <div class="session-pill session-pill--neutral">
+              <span class="session-pill-row">
+                <span class="status-dot status-dot--neutral" aria-hidden="true"></span>
+                <span class="session-pill-title">{{#if demoMode}}Modo de prueba{{else}}Espacio local{{/if}}</span>
+              </span>
+              <span class="session-pill-sub">{{accountId}}</span>
+            </div>
+          {{/if}}
+          {{#if sidebar.liveActive}}
+            <div id="sse-status-pill" class="live-indicator">
+              <span class="live-pulse" aria-hidden="true"></span>
+              <span>En vivo · SSE{{#if sidebar.autoSync.enabled}} · {{sidebar.autoSync.shortLabel}}{{/if}}</span>
+            </div>
+          {{/if}}
+        </div>
+      </div>
+    </aside>
+    <div class="sidebar-backdrop" data-nav-backdrop hidden></div>
+
+    <main id="main-content" class="workspace-main" tabindex="-1" {{#if liveRevision}}data-live-revision="{{liveRevision}}"{{/if}}>
+      <div id="panel-live-status" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+      <div class="content-container">
+        <div class="page-header">
+          <div class="page-header-copy">
+            <h1>Agente · Harness</h1>
+            <p class="page-subtitle">Conecta tu asistente de IA al servidor MCP integrado dentro del contenedor Docker usando tu propia sesión personal.</p>
+          </div>
+          <div class="header-actions">
+            <a href="/" class="btn btn-secondary">Volver a la agenda</a>
+          </div>
+        </div>
+
+        {{#if agentEnabled}}
+          <section class="sheet-card harness-control-card" aria-labelledby="harness-control-title">
+            <div class="harness-control-header">
+              <div>
+                <h2 id="harness-control-title">Control de automatización y entorno aislado</h2>
+                <p class="harness-bridge-line">
+                  <span class="status-dot status-dot--{{#if session.isConnected}}success{{else}}warning{{/if}}" aria-hidden="true"></span>
+                  <strong>{{#if session.isConnected}}Servidor MCP en Docker activo{{else}}Servidor MCP en Docker listo (falta conectar sesión DUTIC){{/if}}</strong>
+                </p>
+                <p class="field-help">Todo corre en un entorno aislado dentro del contenedor: sin rutas de tu PC, sin instalar Node en el anfitrión y sin guardar sesiones dentro de la imagen.</p>
+              </div>
+              <div class="harness-control-meta">
+                <div class="endpoint-badge">
+                  <span class="endpoint-badge-label">Endpoint MCP local</span>
+                  <code class="mono-value endpoint-badge-url">{{liveOrigin}}/mcp</code>
+                </div>
+                {{#if session.isDisconnected}}
+                  <a href="/sesion" class="btn btn-primary btn-sm">Conectar sesión</a>
+                {{/if}}
+              </div>
+            </div>
+
+            <ol class="onboarding-steps" aria-label="Pasos para conectar cualquier asistente de IA">
+              <li class="onboarding-step">
+                <span class="onboarding-step-num" aria-hidden="true">1</span>
+                <div>
+                  <strong>Conecta tu sesión</strong>
+                  <p>Inicia sesión con tu cuenta en <a href="/sesion" class="inline-link">Sesión DUTIC</a>. Cada usuario mantiene sus propios datos locales.</p>
+                </div>
+              </li>
+              <li class="onboarding-step">
+                <span class="onboarding-step-num" aria-hidden="true">2</span>
+                <div>
+                  <strong>Agrega el MCP a tu IA</strong>
+                  <p>Copia el bloque MCP en tu cliente compatible apuntando a <code class="mono-inline">{{liveOrigin}}/mcp</code>.</p>
+                </div>
+              </li>
+              <li class="onboarding-step">
+                <span class="onboarding-step-num" aria-hidden="true">3</span>
+                <div>
+                  <strong>Sube tus PDFs por chat</strong>
+                  <p>Adjunta el PDF directamente en tu chat o déjalo en la carpeta aislada <code class="mono-inline">entregas/</code> y pide que lo suba.</p>
+                </div>
+              </li>
+            </ol>
+
+            <form method="post" action="/agente/politica" class="policy-form">
+              <input type="hidden" name="accountId" value="{{accountId}}">
+              <input type="hidden" name="returnTo" value="/agente">
+              <fieldset class="policy-fieldset">
+                <legend class="sr-only">Política de autorización para agentes externos</legend>
+                <div class="policy-grid">
+                  <label class="policy-option{{#if policy.isConfirmInPanel}} is-selected{{/if}}">
+                    <input type="radio" name="policy" value="confirm_in_panel" {{#if policy.isConfirmInPanel}}checked{{/if}}>
+                    <span class="policy-option-body">
+                      <span class="policy-option-title">Confirmar en panel (Recomendado)</span>
+                      <span class="policy-option-desc">El agente prepara PDF y tarea exacta; tú autorizas con 1 clic en el panel.</span>
+                    </span>
+                  </label>
+                  <label class="policy-option{{#if policy.isDirectOnExactMatch}} is-selected{{/if}}">
+                    <input type="radio" name="policy" value="direct_on_exact_match" {{#if policy.isDirectOnExactMatch}}checked{{/if}}>
+                    <span class="policy-option-body">
+                      <span class="policy-option-title">Entrega directa del Harness</span>
+                      <span class="policy-option-desc">Ejecuta solo si el archivo y la tarea coinciden exactamente sin ambigüedad.</span>
+                    </span>
+                  </label>
+                </div>
+              </fieldset>
+              <div class="policy-actions">
+                <button type="submit" class="btn btn-secondary btn-sm">Guardar política</button>
+              </div>
+            </form>
+
+            <div class="code-well" data-code-tabs>
+              <div class="code-well-header">
+                <div class="code-tablist" role="tablist" aria-label="Métodos de conexión para agentes">
+                  <button type="button" role="tab" id="tab-mcp" aria-controls="panel-mcp" aria-selected="true" tabindex="0" class="code-tab is-active">MCP (HTTP · Docker)</button>
+                  <button type="button" role="tab" id="tab-stdio" aria-controls="panel-stdio" aria-selected="false" tabindex="-1" class="code-tab">MCP STDIO (Docker)</button>
+                  <button type="button" role="tab" id="tab-http" aria-controls="panel-http" aria-selected="false" tabindex="-1" class="code-tab">HTTP API local</button>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" data-copy-text="{{mcpHttpSnippet}}" data-copy-done="Copiada" data-code-copy>
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  <span>Copiar código</span>
+                </button>
+              </div>
+              <div id="panel-mcp" role="tabpanel" aria-labelledby="tab-mcp" tabindex="0" data-copy-source="{{mcpHttpSnippet}}">
+                <pre class="code-block"><code>{{mcpHttpSnippet}}</code></pre>
+                <p class="code-panel-note">Conexión recomendada: el servidor MCP corre dentro del contenedor Docker (acepta PDFs enviados directo por el chat en <code>pdfBase64</code> o archivos colocados en la carpeta aislada <code>entregas/</code>).</p>
+              </div>
+              <div id="panel-stdio" role="tabpanel" aria-labelledby="tab-stdio" tabindex="0" data-copy-source="{{mcpStdioSnippet}}" hidden>
+                <pre class="code-block"><code>{{mcpStdioSnippet}}</code></pre>
+                <p class="code-panel-note">Para clientes MCP que solo soportan STDIO: ejecuta el puente directamente dentro del contenedor sin depender de rutas ni binarios locales.</p>
+              </div>
+              <div id="panel-http" role="tabpanel" aria-labelledby="tab-http" tabindex="0" data-copy-source="{{httpSnippet}}" hidden>
+                <pre class="code-block"><code>{{httpSnippet}}</code></pre>
+              </div>
+            </div>
+          </section>
+
+          <section class="sheet-card assistant-card" aria-labelledby="agent-cmd-title" data-command-card>
+            <div class="assistant-header">
+              <div>
+                <p class="eyebrow">Prueba interactiva</p>
+                <h2 id="agent-cmd-title">Enviar por instrucción natural</h2>
+              </div>
+            </div>
+            <form method="post" action="/agente/comando" enctype="multipart/form-data" class="assistant-form" data-command-form>
+              <input type="hidden" name="accountId" value="{{accountId}}">
+              <input type="hidden" name="returnTo" value="/agente">
+              <input type="hidden" name="authorizeNow" value="true">
+
+              <label for="agent-command-input" class="sr-only">Instrucción de entrega</label>
+              <div class="assistant-input-row">
+                <input
+                  id="agent-command-input"
+                  type="text"
+                  name="instruction"
+                  value="{{commandInstruction}}"
+                  placeholder="Ej. subeme el laboratorio 8 de mn"
+                  autocomplete="off"
+                  data-command-input
+                >
+                <button type="button" class="btn btn-secondary" data-command-analyze>Analizar</button>
+              </div>
+
+              <div class="assistant-file-row">
+                <label for="agent-command-pdf" class="file-chip-label">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5M12 3v12"/></svg>
+                  <span data-file-label>Seleccionar PDF local (máx. 20 MiB)</span>
+                  <input id="agent-command-pdf" type="file" name="pdf" accept="application/pdf,.pdf" required>
+                </label>
+
+                <div class="assistant-task-picker">
+                  <label for="agent-command-task" class="sr-only">Tarea destino</label>
+                  <select id="agent-command-task" name="taskId" data-command-select>
+                    <option value="">Detectar tarea automáticamente</option>
+                    {{#each openTasks}}
+                      <option value="{{taskId}}">{{course}} — {{title}}</option>
+                    {{/each}}
+                  </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary" data-command-submit>Autorizar y entregar</button>
+              </div>
+
+              <div class="command-preview-box" data-command-preview aria-live="polite" {{#unless commandCandidates}}hidden{{/unless}}>
+                {{#if commandCandidates}}
+                  <div class="command-preview-head">
+                    <span class="badge badge--warning">Varias coincidencias</span>
+                    <p>Selecciona la tarea exacta antes de autorizar.</p>
+                  </div>
+                {{/if}}
+              </div>
+
+              {{#if commandError}}<p class="field-error" role="alert">{{commandError}}</p>{{/if}}
+            </form>
+          </section>
+
+          <div id="panel-dynamic-content">
+            {{#if pendingProposals.length}}
+              <section class="sheet-card proposals-alert-card" aria-labelledby="agent-proposals-title">
+                <div class="proposals-alert-header">
+                  <div>
+                    <p class="eyebrow">Pendientes de autorización</p>
+                    <h2 id="agent-proposals-title">Propuestas recibidas desde el Harness ({{pendingProposals.length}})</h2>
+                  </div>
+                </div>
+                <ul class="proposal-list">
+                  {{#each pendingProposals}}
+                    <li class="proposal-row">
+                      <div class="proposal-copy">
+                        <div class="proposal-badges">
+                          <span class="badge badge--warning">{{sourceLabel}}</span>
+                          <a href="{{taskHref}}" class="proposal-task-link">{{taskTitle}}</a>
+                        </div>
+                        <p class="row-meta">{{taskCourse}} · <strong>{{pdfOriginalName}}</strong> · <code class="mono-inline">sha256: {{shortSha256}}</code></p>
+                        {{#if instruction}}<p class="proposal-instruction">«{{instruction}}»</p>{{/if}}
+                      </div>
+                      <div class="proposal-actions">
+                        <form method="post" action="/agente/propuestas/{{proposalId}}/autorizar">
+                          <input type="hidden" name="accountId" value="{{@root.accountId}}">
+                          <input type="hidden" name="returnTo" value="/agente">
+                          <button type="submit" class="btn btn-primary btn-sm">Autorizar y entregar</button>
+                        </form>
+                        <form method="post" action="/agente/propuestas/{{proposalId}}/rechazar">
+                          <input type="hidden" name="accountId" value="{{@root.accountId}}">
+                          <input type="hidden" name="returnTo" value="/agente">
+                          <button type="submit" class="btn btn-ghost btn-sm">Rechazar</button>
+                        </form>
+                      </div>
+                    </li>
+                  {{/each}}
+                </ul>
+              </section>
+            {{/if}}
+
+            <section class="sheet-card" aria-labelledby="proof-history-title">
+              <div class="section-header">
+                <h2 id="proof-history-title">Entregas recientes y comprobantes visuales</h2>
+                <span class="section-count">{{deliveredTasks.length}}</span>
+              </div>
+
+              {{#if deliveredTasks.length}}
+                <div class="proof-history-list">
+                  {{#each deliveredTasks}}
+                    <article class="proof-split-card">
+                      <div class="proof-split-left">
+                        <div class="proof-card-top">
+                          <a href="/tareas/{{taskId}}" class="row-title task-link">{{title}}</a>
+                          <span class="badge badge--{{statusTone}}">{{statusLabel}}</span>
+                        </div>
+                        <p class="row-meta">{{course}}</p>
+                        {{#if currentPdf}}
+                          <p class="checksum-pill">{{currentPdf.originalName}} · sha256: {{shortSha256}}</p>
+                        {{/if}}
+                        {{#if delivery.evidence.visibleStatus}}
+                          <p class="proof-status-note">DUTIC: <strong>{{delivery.evidence.visibleStatus}}</strong>{{#if capturedAtLabel}} · {{capturedAtLabel}}{{/if}}{{#if isConfirmed}} · Movida a Completadas{{/if}}</p>
+                        {{/if}}
+                        <ol class="delivery-stepper delivery-stepper--vertical" aria-label="Progreso de entrega de {{title}}">
+                          {{#each stepper}}
+                            <li class="stepper-item stepper-item--{{state}}">
+                              <span class="stepper-node" aria-hidden="true"></span>
+                              <span class="stepper-label">{{label}}</span>
+                            </li>
+                          {{/each}}
+                        </ol>
+                      </div>
+
+                      <div class="proof-split-right">
+                        <p class="proof-frame-label">Captura verificada de DUTIC</p>
+                        {{#if proofUrl}}
+                          <div class="proof-frame">
+                            <img src="{{proofUrl}}" alt="Captura verificada de entrega en DUTIC para {{title}}" loading="lazy">
+                          </div>
+                          <div class="proof-frame-actions">
+                            <button
+                              type="button"
+                              class="btn btn-secondary btn-sm"
+                              data-proof-open="{{proofUrl}}"
+                              data-proof-download="{{proofDownloadUrl}}"
+                              data-proof-title="{{title}}"
+                              data-proof-meta="{{course}}{{#if delivery.evidence.fileName}} · {{delivery.evidence.fileName}}{{/if}}{{#if delivery.evidence.visibleStatus}} · {{delivery.evidence.visibleStatus}}{{/if}}"
+                            >Ampliar captura</button>
+                            <a href="{{proofDownloadUrl}}" class="btn btn-secondary btn-sm">Descargar PNG</a>
+                          </div>
+                        {{else}}
+                          <div class="proof-frame proof-frame--empty">
+                            <p class="muted-note">Sin captura visual disponible para este intento.</p>
+                          </div>
+                        {{/if}}
+                      </div>
+                    </article>
+                  {{/each}}
+                </div>
+              {{else}}
+                <p class="group-empty-line">Aún no hay entregas registradas. Cuando envíes un PDF desde el panel o desde cualquier agente conectado por MCP/CLI/HTTP aparecerá aquí con su comprobante visual.</p>
+              {{/if}}
+            </section>
+          </div>
+        {{else}}
+          <section class="empty-state-sheet" aria-labelledby="agent-disabled-title">
+            <h2 id="agent-disabled-title">Automatización no activa en este modo</h2>
+            <p class="empty-state-copy">Inicia la aplicación con el modo personal de navegador para habilitar el puente MCP y las entregas asistidas.</p>
+            <div class="empty-state-actions">
+              <a href="/" class="btn btn-secondary">Volver a la agenda</a>
+            </div>
+          </section>
+        {{/if}}
+      </div>
+    </main>
+  </div>
+
+  <dialog id="proof-lightbox" class="proof-dialog" aria-labelledby="proof-dialog-title">
+    <div class="proof-dialog-header">
+      <div>
+        <p class="eyebrow">Comprobante visual de DUTIC</p>
+        <h2 id="proof-dialog-title">Captura de entrega</h2>
+        <p class="proof-dialog-meta" data-proof-meta-target></p>
+      </div>
+      <button type="button" class="btn btn-ghost btn-icon" data-proof-close aria-label="Cerrar vista ampliada">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="proof-dialog-body">
+      <img src="" alt="Captura verificada de entrega en Aula Virtual" data-proof-image>
+    </div>
+    <div class="proof-dialog-footer">
+      <a href="#" class="btn btn-secondary" data-proof-download-link>Descargar PNG</a>
+      <button type="button" class="btn btn-primary" data-proof-close>Cerrar</button>
+    </div>
+  </dialog>
+</body>
+</html>

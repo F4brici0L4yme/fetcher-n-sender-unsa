@@ -1,2 +1,11 @@
 **
 !Dockerfile
+!package.json
+!package-lock.json
+!tsconfig.json
+!nest-cli.json
+!drizzle.config.ts
+!src/
+!src/**
+!scripts/
+!scripts/container-entrypoint.sh

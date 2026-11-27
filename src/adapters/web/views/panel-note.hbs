@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{#if noteId}}Editar nota{{else}}Nueva nota{{/if}} · Aula Virtual</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/assets/panel.css">
+  <script src="/assets/panel.js" defer></script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Ir al contenido principal</a>
+  <div class="workspace">
+    <header class="mobile-bar">
+      <a href="/" class="brand-lockup">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h8M8 11h5"/></svg>
+        </span>
+        <span class="brand-text">
+          <span class="brand-name">Aula Virtual</span>
+          <span class="brand-sub">UNSA · Local</span>
+        </span>
+      </a>
+      <button type="button" class="btn btn-secondary btn-icon" data-nav-toggle aria-expanded="false" aria-controls="workspace-sidebar" aria-label="Abrir navegación">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+    </header>
+
+    <aside id="workspace-sidebar" class="sidebar" aria-label="Navegación del panel">
+      <div class="sidebar-top">
+        <a href="/" class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h8M8 11h5"/></svg>
+          </span>
+          <span class="brand-text">
+            <span class="brand-name">Aula Virtual</span>
+            <span class="brand-sub">UNSA · Local</span>
+          </span>
+        </a>
+      </div>
+
+      <div class="sidebar-body">
+        <nav class="sidebar-nav" aria-label="Vistas principales">
+          <a href="/" class="nav-item">
+            <span class="nav-item-main">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+              <span>Agenda</span>
+            </span>
+          </a>
+          <a href="/?vista=tareas" class="nav-item">
+            <span class="nav-item-main">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+              <span>Tareas DUTIC</span>
+            </span>
+            {{#if sidebar.hasTaskCount}}<span class="nav-count">{{sidebar.taskCount}}</span>{{/if}}
+          </a>
+          <a href="/?vista=notas" class="nav-item is-active" aria-current="page">
+            <span class="nav-item-main">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              <span>Mis Notas</span>
+            </span>
+            {{#if sidebar.hasNoteCount}}<span class="nav-count">{{sidebar.noteCount}}</span>{{/if}}
+          </a>
+          <a href="/?vista=completadas" class="nav-item">
+            <span class="nav-item-main">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg>
+              <span>Completadas</span>
+            </span>
+            {{#if sidebar.hasCompletedCount}}<span class="nav-count">{{sidebar.completedCount}}</span>{{/if}}
+          </a>
+          {{#if sidebar.agentEnabled}}
+            <a href="/agente" class="nav-item">
+              <span class="nav-item-main">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 18v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M3 12h3M18 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/><circle cx="12" cy="12" r="3"/></svg>
+                <span>Agente · Harness</span>
+              </span>
+              {{#if sidebar.hasProposalCount}}
+                <span class="nav-count nav-count--alert">{{sidebar.proposalCount}}</span>
+              {{else}}
+                {{#if sidebar.session.isConnected}}<span class="status-dot status-dot--success" aria-hidden="true"></span>{{/if}}
+              {{/if}}
+            </a>
+          {{/if}}
+          {{#if sidebar.sessionEnabled}}
+            <a href="/sesion" class="nav-item">
+              <span class="nav-item-main">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+                <span>Sesión DUTIC</span>
+              </span>
+              <span class="status-dot status-dot--{{sidebar.session.tone}}" aria-hidden="true"></span>
+            </a>
+          {{/if}}
+        </nav>
+
+        <div class="sidebar-footer">
+          {{#if sidebar.session}}
+            <a href="/sesion" class="session-pill session-pill--{{sidebar.session.tone}}">
+              <span class="session-pill-row">
+                <span class="status-dot status-dot--{{sidebar.session.tone}}" aria-hidden="true"></span>
+                <span class="session-pill-title">{{sidebar.session.stateLabel}}</span>
+              </span>
+              <span class="session-pill-sub">{{#if sidebar.session.isConnected}}{{accountId}}{{else}}Configurar acceso{{/if}}</span>
+            </a>
+          {{else}}
+            <div class="session-pill session-pill--neutral">
+              <span class="session-pill-row">
+                <span class="status-dot status-dot--neutral" aria-hidden="true"></span>
+                <span class="session-pill-title">Espacio local</span>
+              </span>
+              <span class="session-pill-sub">{{accountId}}</span>
+            </div>
+          {{/if}}
+        </div>
+      </div>
+    </aside>
+    <div class="sidebar-backdrop" data-nav-backdrop hidden></div>
+
+    <main id="main-content" class="workspace-main" tabindex="-1">
+      <div class="content-container form-shell">
+        <nav aria-label="Ruta de navegación" class="breadcrumb-nav">
+          <a href="/?vista=notas" class="back-link">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+            <span>Volver a Mis Notas</span>
+          </a>
+        </nav>
+
+        <header class="detail-header">
+          <span class="eyebrow">Nota personal</span>
+          <h1>{{#if noteId}}Editar nota{{else}}Nueva nota{{/if}}</h1>
+          <p class="page-subtitle">{{#if noteId}}Actualiza los detalles, prioridad o fecha límite de tu nota.{{else}}Registra un pendiente o recordatorio de estudio en tu agenda local.{{/if}}</p>
+        </header>
+
+        {{#if error}}<p class="field-error field-error--banner" id="note-error" role="alert">{{error}}</p>{{/if}}
+
+        <section class="sheet-card" aria-label="Datos de la nota">
+          <form method="post" action="{{#if noteId}}/notas/{{noteId}}/editar{{else}}/notas{{/if}}" class="editorial-form" {{#if error}}aria-describedby="note-error"{{/if}}>
+            <input type="hidden" name="accountId" value="{{accountId}}">
+
+            <div class="field-group">
+              <label for="note-title">Título</label>
+              <input id="note-title" name="title" value="{{form.title}}" maxlength="200" placeholder="Ej. Repasar integrales impropias" required>
+            </div>
+
+            <div class="field-group">
+              <label for="note-description">Descripción <span class="label-optional">(opcional)</span></label>
+              <textarea id="note-description" name="description" maxlength="10000" rows="5" placeholder="Capítulos, temas clave o enlaces de estudio...">{{form.description}}</textarea>
+            </div>
+
+            <div class="field-group">
+              <label id="label-note-priority" for="note-priority">Prioridad</label>
+              <select id="note-priority" name="priority" data-segmented-select="priority" data-label-id="label-note-priority">
+                <option value="alta" {{#if form.high}}selected{{/if}}>Alta</option>
+                <option value="media" {{#if form.medium}}selected{{/if}}>Media</option>
+                <option value="baja" {{#if form.low}}selected{{/if}}>Baja</option>
+              </select>
+            </div>
+
+            <div class="field-group">
+              <label for="note-deadline">Fecha o plazo <span class="label-optional">(opcional)</span></label>
+              <input id="note-deadline" name="deadline" value="{{form.deadline}}" aria-describedby="note-deadline-help" placeholder="2026-12-05" class="mono-input">
+              <p id="note-deadline-help" class="field-help">Usa AAAA-MM-DD. Para incluir hora: 2026-12-05T23:59:00-05:00 (Lima).</p>
+            </div>
+
+            <div class="field-group">
+              <label id="label-note-status" for="note-status">Estado</label>
+              <select id="note-status" name="status" data-segmented-select="status" data-label-id="label-note-status">
+                <option value="pendiente" {{#if form.pending}}selected{{/if}}>Pendiente</option>
+                <option value="completado" {{#if form.completed}}selected{{/if}}>Completado</option>
+              </select>
+            </div>
+
+            <div class="form-footer">
+              <button type="submit" class="btn btn-primary">Guardar nota</button>
+              <a href="/" class="btn btn-ghost">Cancelar</a>
+            </div>
+          </form>
+        </section>
+
+        {{#if noteId}}
+          <section class="sheet-card note-actions-card" aria-label="Acciones de la nota">
+            {{#unless form.completed}}
+              <div class="action-row">
+                <div>
+                  <h2 class="action-row-title">Finalizar pendiente</h2>
+                  <p class="field-help">Mueve esta nota a tu archivo de completadas.</p>
+                </div>
+                <form method="post" action="/notas/{{noteId}}/completar">
+                  <input type="hidden" name="accountId" value="{{accountId}}">
+                  <button type="submit" class="btn btn-secondary">Marcar como completada</button>
+                </form>
+              </div>
+              <hr class="hairline-divider">
+            {{/unless}}
+            <div class="action-row action-row--danger">
+              <div>
+                <h2 class="action-row-title action-row-title--danger">Zona de eliminación</h2>
+                <p class="field-help">Eliminar esta nota es permanente y no se puede deshacer.</p>
+              </div>
+              <form method="post" action="/notas/{{noteId}}/eliminar">
+                <input type="hidden" name="accountId" value="{{accountId}}">
+                <button type="submit" class="btn btn-danger-outline">Eliminar nota</button>
+              </form>
+            </div>
+          </section>
+        {{/if}}
+      </div>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { AssignmentImportRepository, JobRepository, SearchHistory, TaskRepository, WorkerRepository, WorkerSession } from '../../core/application/ports/persistence';
+import { AccountRevisionRepository, AssignmentImportRepository, JobRepository, SearchHistory, TaskRepository, WorkerRepository, WorkerSession } from '../../core/application/ports/persistence';
 import { isDateOnly } from '../../core/domain/deadline';
 import { requireCurrentPdfAndAvailableDelivery, requireDeliveryDestination } from '../../core/domain/delivery';
 import {
@@ -10,7 +10,7 @@ import {
 import * as schema from './schema';
 import { TASK_CHANGES_CHANNEL } from './task-changes';
 
-const { tasks, pdfs, jobs, deliveries } = schema;
+const { tasks, pdfs, jobs, deliveries, accountRevisions } = schema;
 type Database = NodePgDatabase<typeof schema>;
 
 export function postgresDatabase(pool: Pool): Database {
@@ -69,6 +69,16 @@ export class PostgresAssignmentImportRepository implements AssignmentImportRepos
       .where(and(eq(jobs.accountId, accountId), eq(jobs.kind, 'search'), eq(jobs.state, 'completed')))
       .orderBy(desc(jobs.updatedAt), desc(jobs.id)).limit(1);
     return record?.id ?? null;
+  }
+}
+
+export class PostgresAccountRevisionRepository implements AccountRevisionRepository {
+  constructor(private readonly db: Database) {}
+
+  async currentRevision(accountId: string): Promise<string> {
+    const [row] = await this.db.select({ revision: accountRevisions.revision })
+      .from(accountRevisions).where(eq(accountRevisions.accountId, accountId));
+    return `${accountId}:${row?.revision?.toString() ?? '0'}`;
   }
 }
 

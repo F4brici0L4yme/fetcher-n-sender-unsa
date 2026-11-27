@@ -8,9 +8,12 @@
   },
   "scripts": {
     "build": "nest build",
+    "up": "sh scripts/start-local.sh",
     "test": "npm run build && node --test \"dist/**/*.test.js\"",
     "test:integration": "npm run build && node --test \"dist/**/*.integration.js\"",
     "aula:import": "node dist/bootstrap/import-aula.js",
+    "aula:agent": "node dist/bootstrap/agent-cli.js",
+    "mcp": "node dist/adapters/mcp/stdio.js",
     "db:migrate": "drizzle-kit migrate",
     "start:dev": "nest start --watch"
   },
@@ -21,6 +24,7 @@
     "drizzle-orm": "0.45.4",
     "express-handlebars": "9.0.6",
     "pg": "8.23.1",
+    "playwright": "1.65.1",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2"
   },

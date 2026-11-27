@@ -11,6 +11,8 @@ export interface DeliveryPageObservation {
   visibleStatus: string;
   attachments: readonly { name: string; sha256?: string }[];
   portalReference?: string;
+  proofKey?: string;
+  capturedAt?: string;
 }
 
 export interface DeliveryPageReader {

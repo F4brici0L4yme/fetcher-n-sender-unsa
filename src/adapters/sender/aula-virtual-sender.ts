@@ -75,7 +75,11 @@ export class AulaVirtualSender implements AssignmentSender {
       if (opened.kind !== 'opened') return { state: 'needs_verification' };
       page = opened.page;
       const observed = await page.inspect();
-      return this.matches(observed, target) ? this.observedResult(observed, order, true) : { state: 'needs_verification' };
+      if (!this.matches(observed, target)) return { state: 'needs_verification' };
+      if ((observed.state === 'open' || observed.state === 'closed') && observed.attachments.length === 0) {
+        return { state: 'failed', evidence: this.evidence(observed, order) };
+      }
+      return this.observedResult(observed, order, true);
     } catch {
       return { state: 'needs_verification' };
     } finally {
@@ -124,6 +128,8 @@ export class AulaVirtualSender implements AssignmentSender {
       activityUrl: order.activityUrl, visibleStatus: observed.visibleStatus,
       fileName: observed.attachments.length === 1 ? observed.attachments[0]?.name : undefined,
       portalReference: observed.portalReference,
+      ...(observed.proofKey ? { proofKey: observed.proofKey } : {}),
+      ...(observed.capturedAt ? { capturedAt: observed.capturedAt } : {}),
     };
   }
 

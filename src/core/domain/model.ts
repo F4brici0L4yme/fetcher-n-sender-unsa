@@ -25,6 +25,8 @@ export interface DeliveryEvidence {
   visibleStatus: string;
   fileName?: string;
   portalReference?: string;
+  proofKey?: string;
+  capturedAt?: string;
 }
 
 export type SearchState = 'queued' | 'running' | 'completed' | 'failed';
@@ -63,7 +65,9 @@ export type DeliveryResult =
 export class ApplicationError extends Error {
   constructor(
     readonly code: 'not_found' | 'invalid_capture' | 'invalid_pdf' | 'stale_pdf'
-      | 'unsupported_destination' | 'delivery_pending' | 'delivery_not_uncertain',
+      | 'unsupported_destination' | 'delivery_pending' | 'delivery_not_uncertain'
+      | 'delivery_confirmed' | 'delivery_active'
+      | 'proposal_not_pending' | 'invalid_policy',
     message: string,
   ) {
     super(message);

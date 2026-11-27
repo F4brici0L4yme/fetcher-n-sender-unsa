@@ -40,6 +40,12 @@ export interface PdfStore {
   verifiedPath(storageKey: string, sha256: string): Promise<string>;
 }
 
+export interface ProofStore {
+  writePng(content: Uint8Array): Promise<string>;
+  readPng(storageKey: string): Promise<Uint8Array | null>;
+  discard(storageKey: string): Promise<void>;
+}
+
 export type ClaimedWork =
   | { kind: 'search'; jobId: string }
   | { kind: 'delivery'; order: StoredDeliveryOrder }

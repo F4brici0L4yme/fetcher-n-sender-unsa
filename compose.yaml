@@ -2,6 +2,9 @@ services:
   app:
     build: .
     init: true
+    shm_size: 1gb
+    security_opt:
+      - seccomp=./docker/chromium-seccomp.json
     environment:
       NODE_ENV: development
       HOST: 0.0.0.0
@@ -9,19 +12,29 @@ services:
       TZ: America/Lima
       DATABASE_URL: postgresql://fetcher:${POSTGRES_PASSWORD:-fetcher_dev}@db:5432/fetcher
       UPLOAD_DIR: /data/uploads
-      AULA_CAPTURE_MODE: ${AULA_CAPTURE_MODE:-}
+      PROOF_DIR: /data/uploads/proofs
+      SESSION_DIR: /sessions
+      DISPLAY: :99
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://127.0.0.1:${APP_PORT:-3000}}
+      MCP_INBOX_DIR: /inbox
+      LOGIN_VIEWER_PORT: ${LOGIN_VIEWER_PORT:-6080}
+      AULA_CAPTURE_MODE: ${AULA_CAPTURE_MODE:-browser}
       AULA_PORTAL_URL: ${AULA_PORTAL_URL:-}
       AULA_PORTAL_ACCOUNT: ${AULA_PORTAL_ACCOUNT:-}
       AULA_ACCOUNT_ID: ${AULA_ACCOUNT_ID:-}
+      AULA_AUTO_SYNC_INTERVAL_SECONDS: ${AULA_AUTO_SYNC_INTERVAL_SECONDS:-180}
     depends_on:
       db:
         condition: service_healthy
     ports:
       - "127.0.0.1:${APP_PORT:-3000}:3000"
+      - "127.0.0.1:${LOGIN_VIEWER_PORT:-6080}:6080"
     volumes:
       - .:/workspace
       - node_modules:/workspace/node_modules
       - uploads:/data
+      - sessions:/sessions
+      - ./entregas:/inbox:ro
 
   db:
     image: postgres:18.7-bookworm
@@ -41,4 +54,5 @@ services:
 volumes:
   node_modules:
   uploads:
+  sessions:
   postgres_data:

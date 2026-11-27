@@ -70,6 +70,8 @@ export const deliveries = pgTable('deliveries', {
   visibleStatus: text('visible_status'),
   observedFileName: text('observed_file_name'),
   portalReference: text('portal_reference'),
+  proofStorageKey: text('proof_storage_key'),
+  proofCapturedAt: zoned('proof_captured_at'),
 }, (table) => [
   unique().on(table.taskId, table.pdfId),
   foreignKey({ columns: [table.taskId, table.pdfId], foreignColumns: [pdfs.taskId, pdfs.id] }),
@@ -77,6 +79,7 @@ export const deliveries = pgTable('deliveries', {
 
 export * from './schema-notes';
 export * from './schema-sessions';
+export * from './schema-agent';
 
 export const accountRevisions = pgTable('account_revisions', {
   accountId: text('account_id').primaryKey(),

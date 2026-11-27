@@ -1,6 +1,6 @@
 import { compareDeadline, visibleDeadline } from '../domain/deadline';
 import { ApplicationError, PdfSummary } from '../domain/model';
-import { JobRepository, PdfStore, SearchHistory, TaskRepository } from './ports/persistence';
+import { JobRepository, PdfStore, ProofStore, SearchHistory, TaskRepository } from './ports/persistence';
 
 export const MAX_PDF_BYTES = 20 * 1024 * 1024;
 
@@ -95,6 +95,21 @@ export class VerificarEntrega {
 
   async execute(accountId: string, jobId: string) {
     await this.jobs.requestVerification(accountId, jobId);
+    return { jobId };
+  }
+}
+
+export class DescartarIntentoEntrega {
+  constructor(
+    private readonly jobs: JobRepository,
+    private readonly proofs?: ProofStore,
+  ) {}
+
+  async execute(accountId: string, taskId: string, jobId: string): Promise<{ jobId: string }> {
+    const result = await this.jobs.discardDelivery(accountId, taskId, jobId);
+    if (result.proofStorageKey && this.proofs) {
+      await this.proofs.discard(result.proofStorageKey).catch(() => undefined);
+    }
     return { jobId };
   }
 }

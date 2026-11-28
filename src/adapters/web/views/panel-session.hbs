@@ -156,6 +156,14 @@
             </div>
 
             <p class="session-message" role="status">{{session.message}}</p>
+            {{#if portalUrl}}
+              <div class="connected-summary" data-configured-portal>
+                <div>
+                  <p class="connected-label">Portal configurado (<code class="mono-inline">AULA_PORTAL_URL</code>)</p>
+                  <p class="mono-value">{{portalUrl}}</p>
+                </div>
+              </div>
+            {{/if}}
             {{#if sessionError}}<p id="session-error" class="field-error" role="alert">{{sessionError}}</p>{{/if}}
 
             {{#if session.viewer}}
@@ -248,6 +256,16 @@
                 {{/if}}
               {{/if}}
             </p>
+            {{#unless demoMode}}
+              {{#if portalUrl}}
+                <div class="connected-summary" data-configured-portal>
+                  <div>
+                    <p class="connected-label">Portal configurado (<code class="mono-inline">AULA_PORTAL_URL</code>)</p>
+                    <p class="mono-value">{{portalUrl}}</p>
+                  </div>
+                </div>
+              {{/if}}
+            {{/unless}}
             <div class="empty-state-actions">
               <a href="/" class="btn btn-secondary">Volver a la agenda</a>
             </div>

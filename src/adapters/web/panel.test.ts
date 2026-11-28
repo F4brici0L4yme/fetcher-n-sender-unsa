@@ -110,9 +110,26 @@ test('panel MVC usa los casos de uso y respeta la autorización y los errores de
   assert.equal(sessionRedirect.status, 302);
   assert.equal(sessionRedirect.headers.get('location'), '/sesion');
 
-  const sessionPage = await read('/sesion');
-  assert.match(sessionPage, /<h1>Sesión DUTIC<\/h1>/);
-  assert.match(sessionPage, /Sesión personal no activa en este modo/);
+  const savedPortalUrl = process.env.AULA_PORTAL_URL;
+  delete process.env.AULA_PORTAL_URL;
+  try {
+    const sessionPage = await read('/sesion');
+    assert.match(sessionPage, /<h1>Sesión DUTIC<\/h1>/);
+    assert.match(sessionPage, /Sesión personal no activa en este modo/);
+    assert.match(sessionPage, /data-configured-portal[\s\S]*?https:\/\/aulavirtual\.unsa\.edu\.pe\/2026B\//);
+
+    process.env.AULA_PORTAL_URL = 'https://aulavirtual.unsa.edu.pe/2027A';
+    const overrideSessionPage = await read('/sesion');
+    assert.match(overrideSessionPage, /data-configured-portal[\s\S]*?https:\/\/aulavirtual\.unsa\.edu\.pe\/2027A\//);
+
+    process.env.AULA_PORTAL_URL = 'javascript:alert(1)';
+    const fallbackSessionPage = await read('/sesion');
+    assert.doesNotMatch(fallbackSessionPage, /javascript:alert/);
+    assert.match(fallbackSessionPage, /data-configured-portal[\s\S]*?https:\/\/aulavirtual\.unsa\.edu\.pe\/2026B\//);
+  } finally {
+    if (savedPortalUrl === undefined) delete process.env.AULA_PORTAL_URL;
+    else process.env.AULA_PORTAL_URL = savedPortalUrl;
+  }
 
   const rejected = await post('/busquedas', undefined, { Origin: 'https://otro.example', 'Sec-Fetch-Site': 'cross-site' });
   assert.equal(rejected.status, 403);

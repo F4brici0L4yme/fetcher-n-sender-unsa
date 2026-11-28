@@ -42,8 +42,12 @@ if [ "${AULA_CAPTURE_MODE:-browser}" = browser ]; then
   done
 fi
 
-if [ -d src ]; then
+if [ ! -f dist/bootstrap/main.js ] || [ "${AUTO_BUILD:-false}" = true ]; then
   npm run build
+fi
+if [ -z "${DATABASE_URL:-}" ]; then
+  printf '%s\n' 'Error: DATABASE_URL is required to run database migrations and start the server.' >&2
+  exit 1
 fi
 npm run db:migrate
 node dist/bootstrap/main.js &

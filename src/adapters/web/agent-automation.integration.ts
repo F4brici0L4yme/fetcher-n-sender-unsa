@@ -208,7 +208,8 @@ test('full harness MCP + web panel automation flow: proposals, SSE, proof PNG, C
     assert.match(agentHtml, /cualquier agente conectado por MCP\/CLI\/HTTP/);
     assert.match(agentHtml, new RegExp(`id="panel-mcp"[\\s\\S]*?${escapedOrigin}/mcp[\\s\\S]*?id="panel-stdio"`));
     assert.doesNotMatch(agentHtml, /id="panel-mcp"[\s\S]*?AULA_PANEL_URL[\s\S]*?id="panel-stdio"/);
-    assert.match(agentHtml, /id="panel-stdio"[\s\S]*?docker[\s\S]*?dist\/adapters\/mcp\/stdio\.js[\s\S]*?id="panel-http"/);
+    assert.match(agentHtml, /id="panel-stdio"[\s\S]*?docker[\s\S]*?compose[\s\S]*?exec[\s\S]*?(?:"|&quot;)-T(?:"|&quot;)[\s\S]*?dist\/adapters\/mcp\/stdio\.js[\s\S]*?id="panel-http"/);
+    assert.doesNotMatch(agentHtml, /id="panel-stdio"[\s\S]*?(?:"|&quot;)-i(?:"|&quot;)[\s\S]*?id="panel-http"/);
     assert.match(agentHtml, new RegExp(`id="panel-http"[\\s\\S]*?${escapedOrigin}/api/agente/estado[\\s\\S]*?${escapedOrigin}/api/agente/entregas`));
     assert.doesNotMatch(agentHtml, new RegExp('id="panel-http"[\\s\\S]*?http://127\\.0\\.0\\.1:3000'));
 

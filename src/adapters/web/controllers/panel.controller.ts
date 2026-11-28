@@ -60,7 +60,27 @@ function readBodyString(body: unknown, key: string): string | undefined {
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]', '::1']);
 const DEFAULT_LIVE_ORIGIN = 'http://127.0.0.1:3000';
+const DEFAULT_PORTAL_URL = 'https://aulavirtual.unsa.edu.pe/2026B/';
 const CONTROL_CHAR_PATTERN = /[\u0000-\u001f\u007f]/;
+
+function resolveConfiguredPortalUrl(): string {
+  const raw = process.env.AULA_PORTAL_URL?.trim();
+  if (!raw || CONTROL_CHAR_PATTERN.test(raw)) return DEFAULT_PORTAL_URL;
+  const parsed = URL.parse(raw);
+  if (
+    !parsed
+    || parsed.protocol !== 'https:'
+    || parsed.username
+    || parsed.password
+    || parsed.pathname.startsWith('//')
+  ) {
+    return DEFAULT_PORTAL_URL;
+  }
+  if (!parsed.pathname.endsWith('/')) parsed.pathname += '/';
+  parsed.search = '';
+  parsed.hash = '';
+  return parsed.href;
+}
 
 function parseLoopbackHttpOrigin(raw: string): string | null {
   const trimmed = raw.trim();
@@ -101,7 +121,7 @@ function buildMcpStdioSnippet(): string {
     mcpServers: {
       'aula-virtual-unsa': {
         command: 'docker',
-        args: ['compose', 'exec', '-i', 'app', 'node', 'dist/adapters/mcp/stdio.js'],
+        args: ['compose', 'exec', '-T', 'app', 'node', 'dist/adapters/mcp/stdio.js'],
       },
     },
   }, null, 2);
@@ -579,10 +599,12 @@ export class PanelController {
     const liveRevision = this.assisted ? null : (captureRevision ?? null);
     const completedCount = noteList.filter((n) => n.status === 'completado').length
       + tasks.filter((t) => t.delivery?.state === 'confirmed').length;
+    const portalUrl = resolveConfiguredPortalUrl();
 
     return {
       accountId,
       demoMode: this.demoMode,
+      portalUrl,
       assistedCapture: this.assisted ? { ready: this.assisted.ready, revision: captureRevision ?? '' } : null,
       liveRevision,
       session,

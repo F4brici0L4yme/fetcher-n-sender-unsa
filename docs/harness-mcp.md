@@ -35,18 +35,20 @@ Funciona directamente contra el contenedor sin depender de rutas de carpetas ni 
 
 ### 2. MCP STDIO dentro de Docker (para clientes solo-STDIO)
 
-Ejecuta el servidor STDIO directamente dentro del contenedor `app` sin exponer rutas de tu PC:
+Ejecuta el servidor STDIO directamente dentro del contenedor `app` sin exponer rutas de tu equipo (el parámetro `-T` desactiva la asignación de pseudo-TTY para preservar el flujo JSON-RPC por entrada/salida estándar):
 
 ```json
 {
   "mcpServers": {
     "aula-virtual-unsa": {
       "command": "docker",
-      "args": ["compose", "exec", "-i", "app", "node", "dist/adapters/mcp/stdio.js"]
+      "args": ["compose", "exec", "-T", "app", "node", "dist/adapters/mcp/stdio.js"]
     }
   }
 }
 ```
+
+> **Nota sobre el directorio de trabajo (CWD):** `docker compose exec` necesita ejecutarse con la raíz de este repositorio como directorio de trabajo actual (o pasar explícitamente `-f <ruta-al-compose.yaml>`). Siempre que tu cliente lo soporte, **se recomienda usar Streamable HTTP (`http://127.0.0.1:<PUERTO>/mcp`)**, ya que funciona independientemente del directorio actual y sin depender del CLI local de Docker.
 
 ### 3. API HTTP local en loopback
 
@@ -65,7 +67,7 @@ curl -s -X POST http://127.0.0.1:3000/api/agente/entregas \
 
 ## Cómo entregar PDFs sin exponer tu sistema de archivos
 
-El servidor MCP dentro de Docker nunca accede a tu carpeta `/home` ni a tu sistema de archivos real. Tienes dos formas limpias y aisladas de entregar un PDF:
+El servidor MCP dentro de Docker nunca accede a tu carpeta personal de usuario ni a tu sistema de archivos real. Tienes dos formas limpias y aisladas de entregar un PDF:
 
 1. **Directamente desde el chat (`pdfBase64` + `fileName`):** adjuntas el PDF en tu chat o le pides a tu asistente que envíe el contenido del PDF codificado en Base64 a `aula_deliver_pdf`. Funciona incluso ejecutando la imagen Docker de forma independiente sin montar carpetas.
 2. **Carpeta sandbox `entregas/` (`/inbox` en solo lectura dentro de Docker):** colocas tus PDFs en `./entregas/` (por ejemplo `./entregas/mn/Lab08.pdf`, ignorada por Git) y tu asistente usa `aula_find_local_pdfs` o `aula_deliver_pdf` dentro de ese espacio aislado.

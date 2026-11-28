@@ -6,21 +6,40 @@ El programa está diseñado para **una persona en su propio equipo**, con una cu
 
 Instala Docker Engine o Docker Desktop con Docker Compose. Desde la raíz del repositorio:
 
-```bash
-# Solo si todavía no tienes .env; no reemplaces tu configuración anterior.
-cp -n .env.example .env
+**1. Crea tu `.env` local (solo si todavía no existe; no reemplaces tu configuración anterior):**
 
-# Recomendado: detecta puertos libres en 127.0.0.1, evita choques y actualiza .runtime-panel-url
+En Linux / macOS:
+
+```bash
+cp -n .env.example .env
+```
+
+En Windows (PowerShell):
+
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+```
+
+**2. Inicia los servicios (compilación local o imagen publicada en GHCR):**
+
+```bash
+# Opción A (imagen precompilada en GHCR: ghcr.io/f4brici0l4yme/fetcher-n-sender-unsa:latest)
+docker compose pull
+npm run up -- --no-build
+
+# Opción B (compilación local recomendada para desarrollo; detecta puertos libres y actualiza .runtime-panel-url)
 npm run up
 
 # Alternativa manual directa con Docker Compose
-docker compose up -d --build
+docker compose up -d --build --wait
 docker compose logs -f app
 ```
 
-`npm run up` (o `sh scripts/start-local.sh`) parte de `APP_PORT` (`3000`) y `LOGIN_VIEWER_PORT` (`6080`) definidos en `.env` o en tus variables de entorno. Si otro proceso ya ocupa alguno de esos puertos en `127.0.0.1`, selecciona automáticamente el siguiente puerto libre (por ejemplo `3001` y `6081`), exporta `APP_PUBLIC_URL` hacia Compose, crea la carpeta sandbox `./entregas` y publica el servidor MCP integrado dentro del contenedor en `http://127.0.0.1:<APP_PORT>/mcp`.
+`npm run up` ejecuta el lanzador multiplataforma `scripts/start-local.mjs` (compatible con Windows PowerShell/CMD, macOS y Linux; `sh scripts/start-local.sh` delega en el mismo script por compatibilidad). Parte de `APP_PORT` (`3000`) y `LOGIN_VIEWER_PORT` (`6080`) definidos en `.env` o en tus variables de entorno. Si otro proceso ya ocupa alguno de esos puertos en `127.0.0.1`, selecciona automáticamente el siguiente puerto libre (por ejemplo `3001` y `6081`), exporta `APP_PUBLIC_URL` hacia Compose, crea la carpeta sandbox `./entregas` y publica el servidor MCP integrado dentro del contenedor en `http://127.0.0.1:<APP_PORT>/mcp`.
 
-Abre la URL mostrada al terminar (por defecto [http://127.0.0.1:3000/](http://127.0.0.1:3000/)). El contenedor instala las dependencias del lockfile cuando cambian, compila, aplica las migraciones y arranca el servidor. La primera construcción descarga Chromium y puede tardar varios minutos.
+Al completar el arranque saludable (`--wait`), `npm run up` escribe la URL loopback activa en `.runtime-panel-url` (con permisos `0600` en sistemas POSIX e ignorado por Git) para que las herramientas locales MCP y CLI descubran automáticamente el puerto en uso. Si quieres usar otra etiqueta de imagen en GHCR, define `APP_IMAGE` en tu entorno o `.env`.
+
+Abre la URL mostrada al terminar (por defecto [http://127.0.0.1:3000/](http://127.0.0.1:3000/)). El contenedor verifica el lockfile, compila solo cuando falta `dist/bootstrap/main.js` o cuando se habilita `AUTO_BUILD=true`, aplica las migraciones y arranca el servidor. La primera construcción local descarga Chromium y puede tardar varios minutos; usar la imagen de GHCR evita esa descarga y compilación inicial.
 
 Si conservas una configuración anterior de captura asistida, cambia **solo** `AULA_CAPTURE_MODE=browser` en tu `.env` para usar el navegador del contenedor. La URL `AULA_PORTAL_URL` debe apuntar al período académico vigente; no está limitada a un año específico. `AULA_ACCOUNT_ID` identifica esta instalación personal y no es una contraseña.
 
@@ -41,7 +60,7 @@ Una entrega real requiere abrir la tarea, vincular el PDF correcto y autorizar e
 | `postgres_data` | Tareas, notas, trabajos y estado de conexión |
 | `uploads` | PDF autorizables; no se sirven como directorio público |
 | `sessions` | Perfiles de navegador aislados por cuenta |
-| `node_modules` | Dependencias del proyecto |
+| `node_modules` | Dependencias del proyecto (solo cuando se usa `compose.dev.yaml`) |
 
 Los directorios de sesión y PDF se crean con permisos `0700`; el proceso utiliza `umask 077`. Esta protección local **no equivale a cifrado del disco**: el administrador del equipo, Docker y alguien con acceso al disco sin cifrar pueden leerlos. Usa cifrado de disco y protege las copias de seguridad si necesitas protección frente a ese riesgo. Nunca copies perfiles, cookies, archivos de sesión ni `.env` a Git o a un chat.
 
@@ -51,11 +70,17 @@ El visor no está abierto permanentemente: la aplicación inicia x11vnc/websocki
 
 ## Comandos de desarrollo y prueba
 
-El código se monta desde el repositorio. Ejecuta npm **dentro de Docker**:
+De forma predeterminada, `compose.yaml` ejecuta la imagen aislada con su compilación incluida (`/workspace/dist`) sin montar el código fuente del equipo anfitrión. Para desarrollo local activo con código montado desde el repositorio y recompilación automática (`AUTO_BUILD=true`), agrega `compose.dev.yaml`:
 
 ```bash
-docker compose exec -T app npm test
-docker compose exec -T app npm run test:integration
+docker compose -f compose.yaml -f compose.dev.yaml up -d --wait
+```
+
+Ejecuta npm **dentro de Docker**:
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml exec -T app npm test
+docker compose -f compose.yaml -f compose.dev.yaml exec -T app npm run test:integration
 ```
 
 Las pruebas de integración usan bases de datos temporales. Las pruebas de navegador deben utilizar un Moodle sintético, nunca sesiones académicas reales. No ejecutes varios `npm run build` simultáneamente: Nest limpia `dist/` al compilar.
@@ -84,6 +109,8 @@ El punto de entrada ejecuta literalmente cualquier comando explícito distinto d
 | `SESSION_DIR` | Dentro del contenedor: `/sessions` |
 | `UPLOAD_DIR` | Dentro del contenedor: `/data/uploads` |
 | `PROOF_DIR` | Dentro del contenedor: `/data/uploads/proofs` (capturas PNG de entregas confirmadas) |
+| `APP_IMAGE` | Imagen Docker usada por `app` (predeterminada `ghcr.io/f4brici0l4yme/fetcher-n-sender-unsa:latest`) |
+| `AUTO_BUILD` | Si es `true`, recompila `dist/` al arrancar el contenedor aunque ya exista `dist/bootstrap/main.js` (predeterminado `false`) |
 | `AULA_AUTO_SYNC_INTERVAL_SECONDS` | Intervalo de sincronización automática en segundo plano (predeterminado `180`; `0` desactiva) |
 
 PostgreSQL no publica un puerto en el equipo; la aplicación lo usa dentro de la red de Compose. La contraseña predeterminada de PostgreSQL es solo para esta instalación local. Cambiarla después de crear el volumen no cambia automáticamente la contraseña de la base ya existente.

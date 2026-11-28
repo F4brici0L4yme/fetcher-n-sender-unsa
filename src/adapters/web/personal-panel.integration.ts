@@ -87,6 +87,8 @@ test('personal panel integrates notes CRUD, session controls, account pinning, a
   }, false);
 
   let subscriber: Awaited<ReturnType<typeof openEvents>> | undefined;
+  const savedPortalUrl = process.env.AULA_PORTAL_URL;
+  delete process.env.AULA_PORTAL_URL;
   try {
     await app.listen(0, '127.0.0.1');
     const origin = await app.getUrl();
@@ -98,13 +100,24 @@ test('personal panel integrates notes CRUD, session controls, account pinning, a
     assert.match(initialHtml, /href="\/sesion"/);
     assert.match(initialHtml, /data-live-revision="initial-personal:0"/);
 
-    // Dedicated /sesion tab renders session controls, live revision, and trust guarantees
+    // Dedicated /sesion tab renders session controls, active portal URL, live revision, and trust guarantees
     const sessionHtml = await (await fetch(origin + '/sesion')).text();
     assert.match(sessionHtml, /<h1>Sesión DUTIC<\/h1>/);
     assert.match(sessionHtml, /Conectar sesión/);
     assert.match(sessionHtml, /name="returnTo" value="\/sesion"/);
     assert.match(sessionHtml, /data-live-revision="initial-personal:0"/);
     assert.match(sessionHtml, /Perfil aislado por cuenta/);
+    assert.match(sessionHtml, /data-configured-portal[\s\S]*?https:\/\/aulavirtual\.unsa\.edu\.pe\/2026B\//);
+
+    process.env.AULA_PORTAL_URL = 'https://aulavirtual.unsa.edu.pe/2027A';
+    const overrideSessionHtml = await (await fetch(origin + '/sesion')).text();
+    assert.match(overrideSessionHtml, /data-configured-portal[\s\S]*?https:\/\/aulavirtual\.unsa\.edu\.pe\/2027A\//);
+
+    process.env.AULA_PORTAL_URL = 'http://insecure.example/2027A';
+    const fallbackSessionHtml = await (await fetch(origin + '/sesion')).text();
+    assert.doesNotMatch(fallbackSessionHtml, /insecure\.example/);
+    assert.match(fallbackSessionHtml, /data-configured-portal[\s\S]*?https:\/\/aulavirtual\.unsa\.edu\.pe\/2026B\//);
+    delete process.env.AULA_PORTAL_URL;
 
     // Invalid identity rejected with 400 and accessible error (both on / and /sesion)
     const badConnect = await fetch(origin + '/sesion/conectar', {
@@ -202,6 +215,8 @@ test('personal panel integrates notes CRUD, session controls, account pinning, a
     assert.equal(await subscriber.nextRevision(), 'initial-personal:3');
     assert.doesNotMatch(await (await fetch(origin + '/')).text(), /Estudiar cálculo/);
   } finally {
+    if (savedPortalUrl === undefined) delete process.env.AULA_PORTAL_URL;
+    else process.env.AULA_PORTAL_URL = savedPortalUrl;
     subscriber?.close();
     await app.close();
   }

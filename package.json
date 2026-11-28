@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "nest build",
-    "up": "sh scripts/start-local.sh",
+    "up": "node scripts/start-local.mjs",
     "test": "npm run build && node --test \"dist/**/*.test.js\"",
     "test:integration": "npm run build && node --test \"dist/**/*.integration.js\"",
     "aula:import": "node dist/bootstrap/import-aula.js",

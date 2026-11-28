@@ -13,6 +13,7 @@ export interface JobRepository {
   queueSearch(accountId: string): Promise<string>;
   authorizeDelivery(accountId: string, taskId: string, pdfId: string): Promise<string>;
   requestVerification(accountId: string, jobId: string): Promise<void>;
+  discardDelivery(accountId: string, taskId: string, jobId: string): Promise<{ proofStorageKey: string | null }>;
   find(accountId: string, jobId: string): Promise<JobView | null>;
 }
 
@@ -38,6 +39,12 @@ export interface PdfStore {
   discard(storageKey: string): Promise<void>;
   path(storageKey: string): string;
   verifiedPath(storageKey: string, sha256: string): Promise<string>;
+}
+
+export interface ProofStore {
+  writePng(content: Uint8Array): Promise<string>;
+  readPng(storageKey: string): Promise<Uint8Array | null>;
+  discard(storageKey: string): Promise<void>;
 }
 
 export type ClaimedWork =

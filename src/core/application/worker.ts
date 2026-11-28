@@ -97,7 +97,10 @@ export class AcademicWorker {
     if (identifiesOrder(result, order)) {
       await session.settleDelivery(order.jobId, expected, 'confirmed', 'Entrega confirmada.', result.evidence);
     } else if (result.state === 'failed') {
-      await session.settleDelivery(order.jobId, expected, 'failed', 'El portal no confirmó ningún envío.', result.evidence);
+      const summary = verification
+        ? 'DUTIC confirmó que todavía no hay ningún envío registrado. Puedes volver a intentar.'
+        : 'El portal no confirmó ningún envío.';
+      await session.settleDelivery(order.jobId, expected, 'failed', summary, result.evidence);
     } else {
       await session.settleDelivery(order.jobId, expected, 'needs_verification',
         'La evidencia del portal todavía no confirma el envío.', result.evidence);

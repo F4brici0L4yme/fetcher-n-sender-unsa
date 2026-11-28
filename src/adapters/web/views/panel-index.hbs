@@ -3,49 +3,468 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tareas · Aula Virtual</title>
+  <title>{{view.pageTitle}}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="/assets/panel.css">
   <script src="/assets/panel.js" defer></script>
 </head>
 <body>
-  <header class="site-header"><div class="shell"><a href="/" class="brand">Aula Virtual</a></div></header>
-  <main class="shell main" {{#if assistedCapture}}data-capture-revision="{{assistedCapture.revision}}"{{/if}}>
-    {{#if assistedCapture}}
-      <p class="notice">{{#if assistedCapture.ready}}Pide al agente en el chat de Codex que busque e importe tus tareas.{{else}}Configura AULA_PORTAL_ACCOUNT para habilitar la importación desde Codex.{{/if}}</p>
-    {{/if}}
-    {{#if demoMode}}<p class="notice">Modo de prueba. La captura y la entrega son simuladas.</p>{{/if}}
-    <div class="heading">
-      <h1>Tareas</h1>
-      {{#unless assistedCapture}}<form method="post" action="/busquedas"><button type="submit" {{#if job.active}}disabled{{/if}}>Buscar tareas</button></form>{{/unless}}
-    </div>
-    {{#if job}}
-      <p class="notice" role="status" {{#if job.active}}data-job-id="{{job.jobId}}"{{/if}}>
-        <strong>{{job.label}}</strong>{{#if job.summary}} · {{job.summary}}{{/if}}
-      </p>
-    {{/if}}
-    {{#each groups}}
-      <section class="task-group" aria-labelledby="group-{{@index}}">
-        <h2 id="group-{{@index}}">{{label}}</h2>
-        {{#if tasks}}
-          <ul class="task-list">
-            {{#each tasks}}
-              <li>
-                <div>
-                  <a class="task-link" href="/tareas/{{taskId}}">{{title}}</a>
-                  <p class="muted">{{course}}</p>
-                </div>
-                <div class="task-meta">
-                  {{#if deadline}}<time datetime="{{deadline}}">{{deadlineLabel}}</time>{{/if}}
-                  {{#if delivery}}<span class="state">{{delivery.label}}</span>{{/if}}
-                </div>
-              </li>
-            {{/each}}
-          </ul>
-        {{else}}
-          <p class="muted">{{empty}}</p>
+  <a href="#main-content" class="skip-link">Ir al contenido principal</a>
+  <div class="workspace">
+    <header class="mobile-bar">
+      <a href="/" class="brand-lockup">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h8M8 11h5"/></svg>
+        </span>
+        <span class="brand-text">
+          <span class="brand-name">Aula Virtual</span>
+          <span class="brand-sub">UNSA · Local</span>
+        </span>
+      </a>
+      <button type="button" class="btn btn-secondary btn-icon" data-nav-toggle aria-expanded="false" aria-controls="workspace-sidebar" aria-label="Abrir navegación">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+    </header>
+
+    <aside id="workspace-sidebar" class="sidebar" aria-label="Navegación del panel">
+      <div class="sidebar-top">
+        <a href="/" class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h8M8 11h5"/></svg>
+          </span>
+          <span class="brand-text">
+            <span class="brand-name">Aula Virtual</span>
+            <span class="brand-sub">UNSA · Local</span>
+          </span>
+        </a>
+      </div>
+
+      <div id="sidebar-dynamic" class="sidebar-body">
+        <nav class="sidebar-nav" aria-label="Vistas principales">
+          <a href="/" class="nav-item{{#if sidebar.isAgenda}} is-active{{/if}}" {{#if sidebar.isAgenda}}aria-current="page"{{/if}}>
+            <span class="nav-item-main">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+              <span>Agenda</span>
+            </span>
+          </a>
+          <a href="/?vista=tareas" class="nav-item{{#if sidebar.isTareas}} is-active{{/if}}" {{#if sidebar.isTareas}}aria-current="page"{{/if}}>
+            <span class="nav-item-main">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+              <span>Tareas DUTIC</span>
+            </span>
+            {{#if sidebar.hasTaskCount}}<span class="nav-count">{{sidebar.taskCount}}</span>{{/if}}
+          </a>
+          {{#if sidebar.notesEnabled}}
+            <a href="/?vista=notas" class="nav-item{{#if sidebar.isNotas}} is-active{{/if}}" {{#if sidebar.isNotas}}aria-current="page"{{/if}}>
+              <span class="nav-item-main">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                <span>Mis Notas</span>
+              </span>
+              {{#if sidebar.hasNoteCount}}<span class="nav-count">{{sidebar.noteCount}}</span>{{/if}}
+            </a>
+          {{/if}}
+          <a href="/?vista=completadas" class="nav-item{{#if sidebar.isCompletadas}} is-active{{/if}}" {{#if sidebar.isCompletadas}}aria-current="page"{{/if}}>
+            <span class="nav-item-main">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg>
+              <span>Completadas</span>
+            </span>
+            {{#if sidebar.hasCompletedCount}}<span class="nav-count">{{sidebar.completedCount}}</span>{{/if}}
+          </a>
+          {{#if sidebar.agentEnabled}}
+            <a href="/agente" class="nav-item{{#if sidebar.isAgente}} is-active{{/if}}" {{#if sidebar.isAgente}}aria-current="page"{{/if}}>
+              <span class="nav-item-main">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 18v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M3 12h3M18 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/><circle cx="12" cy="12" r="3"/></svg>
+                <span>Agente · Harness</span>
+              </span>
+              {{#if sidebar.hasProposalCount}}
+                <span class="nav-count nav-count--alert">{{sidebar.proposalCount}}</span>
+              {{else}}
+                {{#if sidebar.session.isConnected}}<span class="status-dot status-dot--success" aria-hidden="true"></span>{{/if}}
+              {{/if}}
+            </a>
+          {{/if}}
+          {{#if sidebar.sessionEnabled}}
+            <a href="/sesion" class="nav-item{{#if sidebar.isSesion}} is-active{{/if}}" {{#if sidebar.isSesion}}aria-current="page"{{/if}}>
+              <span class="nav-item-main">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+                <span>Sesión DUTIC</span>
+              </span>
+              <span class="status-dot status-dot--{{sidebar.session.tone}}" aria-hidden="true"></span>
+            </a>
+          {{/if}}
+        </nav>
+
+        <div class="sidebar-footer">
+          {{#if sidebar.session}}
+            <a href="/sesion" class="session-pill session-pill--{{sidebar.session.tone}}">
+              <span class="session-pill-row">
+                <span class="status-dot status-dot--{{sidebar.session.tone}}" aria-hidden="true"></span>
+                <span class="session-pill-title">{{sidebar.session.stateLabel}}</span>
+              </span>
+              <span class="session-pill-sub">{{#if sidebar.session.isConnected}}{{accountId}}{{else}}Configurar acceso{{/if}}</span>
+            </a>
+          {{else}}
+            <div class="session-pill session-pill--neutral">
+              <span class="session-pill-row">
+                <span class="status-dot status-dot--neutral" aria-hidden="true"></span>
+                <span class="session-pill-title">{{#if demoMode}}Modo de prueba{{else}}{{#if assistedCapture}}Captura asistida{{else}}Espacio local{{/if}}{{/if}}</span>
+              </span>
+              <span class="session-pill-sub">{{accountId}}</span>
+            </div>
+          {{/if}}
+          {{#if sidebar.liveActive}}
+            <div id="sse-status-pill" class="live-indicator">
+              <span class="live-pulse" aria-hidden="true"></span>
+              <span>En vivo · SSE{{#if sidebar.autoSync.enabled}} · {{sidebar.autoSync.shortLabel}}{{/if}}</span>
+            </div>
+          {{/if}}
+        </div>
+      </div>
+    </aside>
+    <div class="sidebar-backdrop" data-nav-backdrop hidden></div>
+
+    <main id="main-content" class="workspace-main" tabindex="-1" {{#if assistedCapture}}data-capture-revision="{{assistedCapture.revision}}"{{/if}} {{#if liveRevision}}data-live-revision="{{liveRevision}}"{{/if}}>
+      <div id="panel-live-status" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+      <div class="content-container">
+        {{#if assistedCapture}}
+          <div class="mode-banner" role="status">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <p>{{#if assistedCapture.ready}}Pide al agente en el chat de Codex que busque e importe tus tareas.{{else}}Configura AULA_PORTAL_ACCOUNT para habilitar la importación desde Codex.{{/if}}</p>
+          </div>
         {{/if}}
-      </section>
-    {{/each}}
-  </main>
+        {{#if demoMode}}
+          <div class="mode-banner" role="status">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <p>Modo de prueba. La captura y la entrega son simuladas.</p>
+          </div>
+        {{/if}}
+
+        <div class="page-header">
+          <div class="page-header-copy">
+            <h1>{{view.heading}}</h1>
+            <p class="page-subtitle">{{view.subtitle}}</p>
+          </div>
+          <div class="header-actions">
+            {{#if notesEnabled}}
+              <a href="/notas/nueva" class="btn btn-secondary">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                <span>Nueva nota</span>
+              </a>
+            {{/if}}
+            {{#unless assistedCapture}}
+              <form method="post" action="/busquedas" class="header-search-form">
+                <input type="hidden" name="accountId" value="{{accountId}}">
+                <button type="submit" class="btn btn-primary" {{#if job.active}}disabled aria-busy="true"{{/if}}>
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                  <span>Buscar tareas</span>
+                </button>
+              </form>
+            {{/unless}}
+          </div>
+        </div>
+
+        {{#if session}}
+          <section class="sheet-card session-card session-card--{{session.tone}}{{#if session.isConnected}} session-card--compact{{/if}}" aria-labelledby="session-title" data-session-state="{{session.state}}">
+            {{#if session.isConnected}}
+              <div class="session-compact-row">
+                <div class="session-compact-info">
+                  <span class="status-dot status-dot--success" aria-hidden="true"></span>
+                  <div>
+                    <h2 id="session-title" class="session-compact-heading">Sesión personal</h2>
+                    <p class="session-compact-msg" role="status">
+                      {{session.message}}{{#if autoSync.enabled}} · Sincronización automática {{autoSync.intervalLabel}}{{#if autoSync.lastSyncLabel}} (última {{autoSync.lastSyncLabel}}){{/if}}.{{/if}}
+                    </p>
+                  </div>
+                </div>
+                <div class="session-compact-actions">
+                  <a href="/sesion" class="btn btn-ghost btn-sm">Administrar</a>
+                  <form method="post" action="/sesion/desconectar">
+                    <input type="hidden" name="accountId" value="{{accountId}}">
+                    <button type="submit" class="btn btn-danger-outline btn-sm">Desconectar</button>
+                  </form>
+                </div>
+              </div>
+              {{#if sessionError}}<p id="session-error" class="field-error" role="alert">{{sessionError}}</p>{{/if}}
+            {{else}}
+              <div class="session-card-header">
+                <div class="session-title-group">
+                  <h2 id="session-title">Sesión personal</h2>
+                  <span class="badge badge--{{session.tone}}">{{session.stateLabel}}</span>
+                </div>
+                <div class="session-card-actions">
+                  <a href="/sesion" class="btn btn-ghost btn-sm">Ver guía completa</a>
+                  {{#if session.canDisconnect}}
+                    <form method="post" action="/sesion/desconectar">
+                      <input type="hidden" name="accountId" value="{{accountId}}">
+                      <button type="submit" class="btn btn-danger-outline btn-sm">Desconectar</button>
+                    </form>
+                  {{/if}}
+                </div>
+              </div>
+              <p class="session-message" role="status">{{session.message}}</p>
+              {{#if sessionError}}<p id="session-error" class="field-error" role="alert">{{sessionError}}</p>{{/if}}
+              {{#if session.viewer}}
+                <div class="viewer-panel">
+                  <div class="viewer-credentials">
+                    <span class="viewer-label">Contraseña temporal del visor</span>
+                    <div class="viewer-code-row">
+                      <code class="password-code">{{session.viewer.password}}</code>
+                      <button type="button" class="btn btn-secondary btn-sm" data-copy-text="{{session.viewer.password}}" data-copy-done="Copiada">
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        <span>Copiar contraseña</span>
+                      </button>
+                    </div>
+                    <p class="field-help">Protege el visor local temporal; no es tu contraseña de Aula Virtual.</p>
+                  </div>
+                  <a href="{{session.viewer.url}}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+                    <span>Abrir visor de Aula Virtual</span>
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg>
+                  </a>
+                </div>
+              {{/if}}
+              {{#if session.isDisconnected}}
+                <form method="post" action="/sesion/conectar" class="session-form" {{#if sessionError}}aria-describedby="session-error"{{/if}}>
+                  <input type="hidden" name="accountId" value="{{accountId}}">
+                  <label for="session-identity" class="field-label">Correo de tu perfil en Aula Virtual</label>
+                  <div class="session-form-row">
+                    <input id="session-identity" type="email" inputmode="email" name="identity" value="{{sessionIdentity}}" placeholder="estudiante@unsa.edu.pe" autocomplete="email" required {{#if sessionError}}aria-invalid="true" aria-describedby="session-error"{{/if}}>
+                    <button type="submit" class="btn btn-primary">Conectar sesión</button>
+                  </div>
+                </form>
+              {{/if}}
+            {{/if}}
+          </section>
+        {{/if}}
+
+        {{#if showQuickAssistant}}
+          <section class="sheet-card assistant-card" aria-labelledby="assistant-title" data-command-card>
+            <div class="assistant-header">
+              <div>
+                <p class="eyebrow">Entrega asistida / Comando rápido</p>
+                <h2 id="assistant-title">Asistente de entrega rápida</h2>
+              </div>
+              <a href="/agente" class="badge badge--info assistant-link-pill">MCP · Cualquier IA</a>
+            </div>
+
+            <form method="post" action="/agente/comando" enctype="multipart/form-data" class="assistant-form" data-command-form>
+              <input type="hidden" name="accountId" value="{{accountId}}">
+              <input type="hidden" name="returnTo" value="/">
+              <input type="hidden" name="authorizeNow" value="true">
+              <input type="hidden" name="taskId" value="" data-command-task-id>
+
+              <label for="quick-command-input" class="sr-only">Instrucción de entrega</label>
+              <div class="assistant-input-row">
+                <input
+                  id="quick-command-input"
+                  type="text"
+                  name="instruction"
+                  value="{{commandInstruction}}"
+                  placeholder="Ej. subeme el laboratorio 8 de mn"
+                  autocomplete="off"
+                  data-command-input
+                >
+                <button type="button" class="btn btn-secondary" data-command-analyze>Analizar</button>
+              </div>
+
+              <div class="assistant-file-row">
+                <label for="quick-command-pdf" class="file-chip-label">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5M12 3v12"/></svg>
+                  <span data-file-label>Seleccionar PDF local (máx. 20 MiB)</span>
+                  <input id="quick-command-pdf" type="file" name="pdf" accept="application/pdf,.pdf" required>
+                </label>
+
+                <button type="submit" class="btn btn-primary" data-command-submit>Autorizar y entregar</button>
+              </div>
+
+              <div class="command-preview-box" data-command-preview aria-live="polite" {{#unless commandCandidates}}hidden{{/unless}}>
+                {{#if commandCandidates}}
+                  <div class="command-preview-head">
+                    <span class="badge badge--warning">Varias coincidencias</span>
+                    <label for="quick-command-candidates">Elige la tarea exacta:</label>
+                  </div>
+                  <select id="quick-command-candidates" name="taskId" class="assistant-candidate-select" data-command-fallback-select>
+                    {{#each commandCandidates}}
+                      <option value="{{taskId}}">{{course}} — {{title}} ({{deadlineLabel}})</option>
+                    {{/each}}
+                  </select>
+                {{/if}}
+              </div>
+
+              {{#if commandError}}<p class="field-error" role="alert">{{commandError}}</p>{{/if}}
+            </form>
+          </section>
+        {{/if}}
+
+        <div id="panel-dynamic-content">
+
+          {{#if pendingProposals.length}}
+            <section class="sheet-card proposals-alert-card" aria-labelledby="pending-proposals-title">
+              <div class="proposals-alert-header">
+                <div>
+                  <p class="eyebrow">Autorización requerida</p>
+                  <h2 id="pending-proposals-title">Propuestas de entrega del Harness ({{pendingProposals.length}})</h2>
+                </div>
+                <a href="/agente" class="btn btn-ghost btn-sm">Ver en Agente · Harness</a>
+              </div>
+              <ul class="proposal-list">
+                {{#each pendingProposals}}
+                  <li class="proposal-row">
+                    <div class="proposal-copy">
+                      <div class="proposal-badges">
+                        <span class="badge badge--warning">{{sourceLabel}}</span>
+                        <a href="{{taskHref}}" class="proposal-task-link">{{taskTitle}}</a>
+                      </div>
+                      <p class="row-meta">{{taskCourse}} · <strong>{{pdfOriginalName}}</strong> · <code class="mono-inline">sha256: {{shortSha256}}</code></p>
+                      {{#if instruction}}<p class="proposal-instruction">«{{instruction}}»</p>{{/if}}
+                    </div>
+                    <div class="proposal-actions">
+                      <form method="post" action="/agente/propuestas/{{proposalId}}/autorizar">
+                        <input type="hidden" name="accountId" value="{{@root.accountId}}">
+                        <input type="hidden" name="returnTo" value="/">
+                        <button type="submit" class="btn btn-primary btn-sm">Autorizar y entregar</button>
+                      </form>
+                      <form method="post" action="/agente/propuestas/{{proposalId}}/rechazar">
+                        <input type="hidden" name="accountId" value="{{@root.accountId}}">
+                        <input type="hidden" name="returnTo" value="/">
+                        <button type="submit" class="btn btn-ghost btn-sm">Rechazar</button>
+                      </form>
+                    </div>
+                  </li>
+                {{/each}}
+              </ul>
+            </section>
+          {{/if}}
+
+          {{#if view.showFilters}}
+            <nav class="segmented-filter" aria-label="Filtrar elementos de la agenda">
+              <a href="/" class="segmented-tab{{#if view.isAll}} is-active{{/if}}" {{#if view.isAll}}aria-current="page"{{/if}}>Todas</a>
+              <a href="/?vista=tareas" class="segmented-tab{{#if view.isTasks}} is-active{{/if}}" {{#if view.isTasks}}aria-current="page"{{/if}}>Solo tareas</a>
+              {{#if notesEnabled}}
+                <a href="/?vista=notas" class="segmented-tab{{#if view.isNotes}} is-active{{/if}}" {{#if view.isNotes}}aria-current="page"{{/if}}>Solo notas</a>
+              {{/if}}
+            </nav>
+          {{/if}}
+
+          {{#if job}}
+            <div class="status-strip status-strip--{{job.tone}}" role="status" {{#if job.active}}data-job-id="{{job.jobId}}"{{/if}}>
+              <span class="status-dot status-dot--{{job.tone}}" aria-hidden="true"></span>
+              <p><strong>{{job.label}}</strong>{{#if job.summary}} · {{job.summary}}{{/if}}</p>
+            </div>
+          {{/if}}
+
+          {{#if isEmptyView}}
+            <section class="empty-state-sheet" aria-labelledby="empty-state-title">
+              <div class="empty-state-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 15h6"/></svg>
+              </div>
+              <h2 id="empty-state-title">{{view.emptyTitle}}</h2>
+              <p class="empty-state-copy">{{view.emptyDescription}}</p>
+              {{#if view.emptyActionHref}}
+                <div class="empty-state-actions">
+                  <a href="{{view.emptyActionHref}}" class="btn btn-secondary">{{view.emptyActionLabel}}</a>
+                </div>
+              {{/if}}
+            </section>
+          {{else}}
+            {{#each groups}}
+              <section class="agenda-section" aria-labelledby="group-{{@index}}">
+                <div class="section-header">
+                  <h2 id="group-{{@index}}" class="section-heading">{{label}}</h2>
+                  <span class="section-count">{{count}}</span>
+                </div>
+                {{#if tasks}}
+                  <ul class="agenda-sheet task-list">
+                    {{#each tasks}}
+                      {{#if isNote}}
+                        <li class="agenda-row agenda-row--note agenda-row--priority-{{priority}} note-item{{#if completed}} is-completed{{/if}}">
+                          <div class="row-main">
+                            <span class="row-icon row-icon--note" aria-hidden="true">
+                              <svg class="icon" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                            </span>
+                            <div class="row-body">
+                              <a class="row-title task-link" href="{{href}}">{{title}}</a>
+                              <p class="row-meta">Nota personal · Prioridad {{priorityLabel}}{{#if description}} · {{description}}{{/if}}</p>
+                            </div>
+                          </div>
+                          <div class="row-right task-meta">
+                            {{#if deadline}}<time class="due-date" datetime="{{deadline}}">{{deadlineLabel}}</time>{{/if}}
+                            <span class="badge badge--{{priorityTone}}">{{priorityLabel}}</span>
+                            <span class="badge {{#if completed}}badge--success{{else}}badge--neutral{{/if}} state">{{#if completed}}Completada{{else}}Pendiente{{/if}}</span>
+                            {{#unless completed}}
+                              <form method="post" action="/notas/{{noteId}}/completar">
+                                <input type="hidden" name="accountId" value="{{@root.accountId}}">
+                                <button type="submit" class="btn btn-secondary btn-sm">Completar</button>
+                              </form>
+                            {{/unless}}
+                          </div>
+                        </li>
+                      {{else}}
+                        <li class="agenda-row agenda-row--task{{#if isConfirmed}} is-confirmed{{/if}}">
+                          <div class="row-main">
+                            <span class="row-icon row-icon--task" aria-hidden="true">
+                              {{#if isConfirmed}}
+                                <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg>
+                              {{else}}
+                                <svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+                              {{/if}}
+                            </span>
+                            <div class="row-body">
+                              <a class="row-title task-link" href="/tareas/{{taskId}}">{{title}}</a>
+                              <p class="row-meta">{{course}} · {{#if isConfirmed}}{{#if delivery.evidence.fileName}}{{delivery.evidence.fileName}} entregado{{else}}{{destinationLabel}}{{/if}}{{else}}{{destinationLabel}}{{/if}}</p>
+                            </div>
+                          </div>
+                          <div class="row-right task-meta">
+                            {{#if deadline}}<time class="due-date" datetime="{{deadline}}">{{deadlineLabel}}</time>{{/if}}
+                            <span class="badge badge--{{statusTone}} state">{{statusLabel}}</span>
+                            {{#if proofUrl}}
+                              <button
+                                type="button"
+                                class="btn btn-secondary btn-sm"
+                                data-proof-open="{{proofUrl}}"
+                                data-proof-download="{{proofDownloadUrl}}"
+                                data-proof-title="{{title}}"
+                                data-proof-meta="{{course}}{{#if delivery.evidence.fileName}} · {{delivery.evidence.fileName}}{{/if}}{{#if delivery.evidence.visibleStatus}} · {{delivery.evidence.visibleStatus}}{{/if}}"
+                              >
+                                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+                                <span>Ver captura</span>
+                              </button>
+                            {{/if}}
+                          </div>
+                        </li>
+                      {{/if}}
+                    {{/each}}
+                  </ul>
+                {{else}}
+                  <p class="group-empty-line">{{empty}}</p>
+                {{/if}}
+              </section>
+            {{/each}}
+          {{/if}}
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="proof-lightbox" class="proof-dialog" aria-labelledby="proof-dialog-title">
+    <div class="proof-dialog-header">
+      <div>
+        <p class="eyebrow">Comprobante visual de DUTIC</p>
+        <h2 id="proof-dialog-title">Captura de entrega</h2>
+        <p class="proof-dialog-meta" data-proof-meta-target></p>
+      </div>
+      <button type="button" class="btn btn-ghost btn-icon" data-proof-close aria-label="Cerrar vista ampliada">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="proof-dialog-body">
+      <img src="" alt="Captura verificada de entrega en Aula Virtual" data-proof-image>
+    </div>
+    <div class="proof-dialog-footer">
+      <a href="#" class="btn btn-secondary" data-proof-download-link>Descargar PNG</a>
+      <button type="button" class="btn btn-primary" data-proof-close>Cerrar</button>
+    </div>
+  </dialog>
 </body>
 </html>

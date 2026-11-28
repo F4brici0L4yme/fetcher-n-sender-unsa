@@ -9,7 +9,11 @@ export class PostgresTaskChanges implements TaskChanges {
   private retry?: ReturnType<typeof setTimeout>;
   private closed = false;
 
-  constructor(private readonly databaseUrl: string, private readonly accountId: string) {}
+  constructor(private readonly databaseUrl: string, private readonly accountId: string | { current(): string }) {}
+
+  private currentAccount(): string {
+    return typeof this.accountId === 'string' ? this.accountId : this.accountId.current();
+  }
 
   subscribe(onChange: () => void, onClose: () => void): () => void {
     if (this.closed) {
@@ -37,7 +41,9 @@ export class PostgresTaskChanges implements TaskChanges {
     client.on('error', lostConnection);
     client.on('end', lostConnection);
     client.on('notification', ({ channel, payload }) => {
-      if (channel === TASK_CHANGES_CHANNEL && payload === this.accountId) this.signal();
+      if (channel === TASK_CHANGES_CHANNEL && (payload === this.currentAccount() || typeof this.accountId !== 'string')) {
+        this.signal();
+      }
     });
     void client.connect()
       .then(() => client.query('LISTEN ' + TASK_CHANGES_CHANNEL))

@@ -2,7 +2,7 @@ import { isAbsolute } from 'node:path';
 import { AssignmentSender } from '../../core/application/ports/academic';
 import { DeliveryEvidence, DeliveryOrder, DeliveryResult } from '../../core/domain/model';
 import {
-  AulaVirtualDeliveryBrowser, DeliveryPageObservation, DeliveryPageReader, DeliveryTarget,
+  AulaVirtualDeliveryBrowser, DeliveryPageEditor, DeliveryPageObservation, DeliveryPageReader, DeliveryTarget,
 } from './aula-virtual-delivery-browser';
 
 export interface AulaVirtualSenderOptions {
@@ -31,11 +31,12 @@ export class AulaVirtualSender implements AssignmentSender {
       || !/^[a-f0-9]{64}$/.test(order.sha256)) return { state: 'failed' };
 
     let page: DeliveryPageReader | undefined;
+    let editor: DeliveryPageEditor | undefined;
     let mayHaveChanged = false;
     try {
       const opened = await this.options.browser.openForSubmission(target);
       if (opened.kind !== 'opened') return { state: 'failed' };
-      const editor = opened.page;
+      editor = opened.page;
       page = editor;
       const initial = await editor.inspect();
       if (!this.matches(initial, target)) return { state: 'failed' };
@@ -59,7 +60,10 @@ export class AulaVirtualSender implements AssignmentSender {
       const submitted = await editor.inspect();
       return this.matches(submitted, target) ? this.observedResult(submitted, order, false) : { state: 'needs_verification' };
     } catch {
-      return { state: mayHaveChanged ? 'needs_verification' : 'failed' };
+      const mutated = mayHaveChanged
+        ? (typeof editor?.hasMutated === 'function' ? editor.hasMutated() : mayHaveChanged)
+        : false;
+      return { state: mutated ? 'needs_verification' : 'failed' };
     } finally {
       await this.close(page);
     }
@@ -75,7 +79,11 @@ export class AulaVirtualSender implements AssignmentSender {
       if (opened.kind !== 'opened') return { state: 'needs_verification' };
       page = opened.page;
       const observed = await page.inspect();
-      return this.matches(observed, target) ? this.observedResult(observed, order, true) : { state: 'needs_verification' };
+      if (!this.matches(observed, target)) return { state: 'needs_verification' };
+      if ((observed.state === 'open' || observed.state === 'closed') && observed.attachments.length === 0) {
+        return { state: 'failed', evidence: this.evidence(observed, order) };
+      }
+      return this.observedResult(observed, order, true);
     } catch {
       return { state: 'needs_verification' };
     } finally {
@@ -124,6 +132,8 @@ export class AulaVirtualSender implements AssignmentSender {
       activityUrl: order.activityUrl, visibleStatus: observed.visibleStatus,
       fileName: observed.attachments.length === 1 ? observed.attachments[0]?.name : undefined,
       portalReference: observed.portalReference,
+      ...(observed.proofKey ? { proofKey: observed.proofKey } : {}),
+      ...(observed.capturedAt ? { capturedAt: observed.capturedAt } : {}),
     };
   }
 

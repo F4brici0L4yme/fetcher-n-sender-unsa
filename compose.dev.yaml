@@ -1,0 +1,9 @@
+services:
+  app:
+    environment:
+      AUTO_BUILD: 'true'
+    volumes:
+      - .:/workspace
+      - node_modules:/workspace/node_modules
+volumes:
+  node_modules:

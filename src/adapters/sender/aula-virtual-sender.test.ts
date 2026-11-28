@@ -128,3 +128,151 @@ test('la verificación solo consulta y requiere evidencia del archivo exacto', a
     assert.deepEqual(calls, ['read', 'inspect', 'close']);
   }
 });
+
+test('preserves proofKey and capturedAt in confirmed and needs_verification delivery evidence', async () => {
+  const capturedAt = '2026-11-26T08:00:00.000Z';
+  const submittedWithProof: DeliveryPageObservation = {
+    ...submitted,
+    proofKey: 'proof-confirmed-1',
+    capturedAt,
+  };
+  const draftWithProof: DeliveryPageObservation = {
+    ...draft,
+    proofKey: 'proof-draft-2',
+    capturedAt,
+  };
+
+  const confirmedSubmit = await simulate([initial, draft, submittedWithProof]).sender.submit(order);
+  assert.deepEqual(confirmedSubmit, {
+    state: 'confirmed',
+    evidence: {
+      activityUrl,
+      visibleStatus: submittedWithProof.visibleStatus,
+      fileName: order.originalName,
+      portalReference: 'recibo-1',
+      proofKey: 'proof-confirmed-1',
+      capturedAt,
+    },
+  });
+
+  const uncertainSubmit = await simulate([initial, draft, draftWithProof]).sender.submit(order);
+  assert.deepEqual(uncertainSubmit, {
+    state: 'needs_verification',
+    evidence: {
+      activityUrl,
+      visibleStatus: draftWithProof.visibleStatus,
+      fileName: order.originalName,
+      portalReference: undefined,
+      proofKey: 'proof-draft-2',
+      capturedAt,
+    },
+  });
+
+  const verifiedWithProof = await simulate([
+    { ...submittedWithProof, attachments: [{ name: order.originalName, sha256: order.sha256 }] },
+  ]).sender.verify(order);
+  assert.equal(verifiedWithProof.state, 'confirmed');
+  assert.equal(verifiedWithProof.evidence?.proofKey, 'proof-confirmed-1');
+  assert.equal(verifiedWithProof.evidence?.capturedAt, capturedAt);
+
+  const uncertainVerify = await simulate([draftWithProof]).sender.verify(order);
+  assert.equal(uncertainVerify.state, 'needs_verification');
+  assert.equal(uncertainVerify.evidence?.proofKey, 'proof-draft-2');
+  assert.equal(uncertainVerify.evidence?.capturedAt, capturedAt);
+});
+
+test('verify marks open or closed assignment with zero attachments as definitively failed with evidence', async () => {
+  const capturedAt = '2026-11-26T10:00:00.000Z';
+  const emptyOpen: DeliveryPageObservation = {
+    ...target,
+    state: 'open',
+    visibleStatus: 'Todavía no se han realizado envíos',
+    attachments: [],
+    proofKey: 'proof-empty-open',
+    capturedAt,
+  };
+  const emptyClosed: DeliveryPageObservation = {
+    ...target,
+    state: 'closed',
+    visibleStatus: 'No se aceptan entregas',
+    attachments: [],
+    proofKey: 'proof-empty-closed',
+    capturedAt,
+  };
+
+  for (const observed of [emptyOpen, emptyClosed]) {
+    const { calls, sender } = simulate([observed]);
+    const result = await sender.verify(order);
+    assert.deepEqual(result, {
+      state: 'failed',
+      evidence: {
+        activityUrl,
+        visibleStatus: observed.visibleStatus,
+        fileName: undefined,
+        portalReference: undefined,
+        proofKey: observed.proofKey,
+        capturedAt,
+      },
+    });
+    assert.deepEqual(calls, ['read', 'inspect', 'close']);
+  }
+
+  // Open or closed with unexpected attachments stays needs_verification instead of falsely failing.
+  const openWithFile: DeliveryPageObservation = {
+    ...emptyOpen,
+    attachments: [{ name: order.originalName }],
+  };
+  assert.equal((await simulate([openWithFile]).sender.verify(order)).state, 'needs_verification');
+});
+
+test('uses editor.hasMutated() to return failed on pre-flight errors and needs_verification after mutation', async () => {
+  const runWithEditor = async (mutatedBeforeThrow: boolean) => {
+    const calls: string[] = [];
+    let mutated = false;
+    const editor: DeliveryPageEditor = {
+      async inspect() {
+        calls.push('inspect');
+        return initial;
+      },
+      async attachAndSave() {
+        calls.push('attach');
+        mutated = mutatedBeforeThrow;
+        throw new Error(mutatedBeforeThrow ? 'Network dropped after saving draft.' : 'Pre-flight control missing.');
+      },
+      async submitForGrading() {
+        calls.push('submit');
+      },
+      hasMutated() {
+        return mutated;
+      },
+      async close() {
+        calls.push('close');
+      },
+    };
+    const browser: AulaVirtualDeliveryBrowser = {
+      async openForSubmission() {
+        calls.push('edit');
+        return { kind: 'opened', page: editor };
+      },
+      async openForVerification() {
+        calls.push('read');
+        return { kind: 'opened', page: editor };
+      },
+    };
+    const sender = new AulaVirtualSender({
+      portalUrl: 'https://aula.example.edu/2026B/',
+      accountId: order.accountId,
+      browser,
+    });
+    const result = await sender.submit(order);
+    return { calls, result };
+  };
+
+  const preFlight = await runWithEditor(false);
+  assert.deepEqual(preFlight.result, { state: 'failed' });
+  assert.deepEqual(preFlight.calls, ['edit', 'inspect', 'attach', 'close']);
+
+  const postMutation = await runWithEditor(true);
+  assert.deepEqual(postMutation.result, { state: 'needs_verification' });
+  assert.deepEqual(postMutation.calls, ['edit', 'inspect', 'attach', 'close']);
+});

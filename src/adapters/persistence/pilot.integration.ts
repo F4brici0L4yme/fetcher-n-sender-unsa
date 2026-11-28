@@ -11,12 +11,15 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
 import { createApplication } from '../../bootstrap/application';
 import { AssignmentFetcher, AssignmentSender } from '../../core/application/ports/academic';
-import { BuscarTareas, CargarPdf, ListarTareas, SolicitarEntrega } from '../../core/application/tasks';
+import type { ProofStore } from '../../core/application/ports/persistence';
+import { BuscarTareas, CargarPdf, DescartarIntentoEntrega, ListarTareas, SolicitarEntrega, VerificarEntrega } from '../../core/application/tasks';
 import { AcademicWorker } from '../../core/application/worker';
 import { CapturedAssignment, DeliveryOrder } from '../../core/domain/model';
 import { LocalPdfStore } from './files';
-import { postgresDatabase, PostgresJobRepository, PostgresTaskRepository, PostgresWorkerRepository } from './repositories';
-import { deliveries } from './schema';
+import {
+  postgresDatabase, PostgresAccountRevisionRepository, PostgresJobRepository, PostgresTaskRepository, PostgresWorkerRepository,
+} from './repositories';
+import { agentDeliveryProposals, deliveries } from './schema';
 
 function samplePdf() {
   let pdf = '%PDF-1.4\n';
@@ -203,6 +206,200 @@ test('integración del piloto con PostgreSQL y PDF en disco', async (suite) => {
     assert.equal((await jobs.find(otherAccount, jobId))?.state, 'needs_verification');
     await anotherWorker.tick(otherAccount);
     assert.equal((await jobs.find(otherAccount, jobId))?.state, 'needs_verification');
+  });
+
+  await suite.test('DescartarIntentoEntrega descarta intentos fallidos o por verificar, limpia propuestas/comprobante y permite reintentar con el mismo PDF', async () => {
+    const discardAccount = 'discard-account';
+    const discardedProofKeys: string[] = [];
+    const proofStore: ProofStore = {
+      async writePng() { return 'unused.png'; },
+      async readPng() { return null; },
+      async discard(key) { discardedProofKeys.push(key); },
+    };
+    const revisions = new PostgresAccountRevisionRepository(db);
+    const verify = new VerificarEntrega(jobs);
+    const discard = new DescartarIntentoEntrega(jobs, proofStore);
+
+    let submitMode: 'needs_verification' | 'confirmed' = 'needs_verification';
+    let verifyMode: 'needs_verification' | 'failed' = 'needs_verification';
+    const customSender: AssignmentSender = {
+      async submit(order) {
+        if (submitMode === 'confirmed') {
+          return {
+            state: 'confirmed',
+            evidence: {
+              activityUrl: order.activityUrl,
+              visibleStatus: 'Enviado para calificar',
+              fileName: order.originalName,
+              proofKey: 'confirmed-proof.png',
+              capturedAt: '2026-11-26T10:15:00.000Z',
+            },
+          };
+        }
+        return {
+          state: 'needs_verification',
+          evidence: {
+            activityUrl: order.activityUrl,
+            visibleStatus: 'Todavía no se han realizado envíos',
+            proofKey: 'uncertain-proof.png',
+            capturedAt: '2026-11-26T10:00:00.000Z',
+          },
+        };
+      },
+      async verify(order) {
+        if (verifyMode === 'failed') {
+          return {
+            state: 'failed',
+            evidence: {
+              activityUrl: order.activityUrl,
+              visibleStatus: 'Todavía no se han realizado envíos',
+              proofKey: 'empty-dutic-proof.png',
+              capturedAt: '2026-11-26T10:05:00.000Z',
+            },
+          };
+        }
+        return {
+          state: 'needs_verification',
+          evidence: {
+            activityUrl: order.activityUrl,
+            visibleStatus: 'Borrador (no enviado)',
+            proofKey: 'still-uncertain-proof.png',
+            capturedAt: '2026-11-26T10:02:00.000Z',
+          },
+        };
+      },
+    };
+    const discardWorker = new AcademicWorker(work, fetcher, customSender, files, clock);
+
+    candidates = [assignment];
+    await search.execute(discardAccount);
+    await discardWorker.tick(discardAccount);
+    const [task] = await list.execute(discardAccount);
+    assert.ok(task);
+
+    const pdf = await upload.execute({
+      accountId: discardAccount, taskId: task.taskId, originalName: 'Guia_Lab10_Sistemas_Agenticos_2026B_v2.pdf', content: samplePdf(),
+    });
+    const firstAttempt = await deliver.execute({ accountId: discardAccount, taskId: task.taskId, pdfId: pdf.pdfId });
+
+    // Reject discarding while authorized or running.
+    await assert.rejects(
+      discard.execute(discardAccount, task.taskId, firstAttempt.jobId),
+      { code: 'delivery_active' },
+    );
+    await work.withAccountLock(discardAccount, async (session) => {
+      assert.equal((await session.claimNext())?.kind, 'delivery');
+    });
+    assert.equal((await jobs.find(discardAccount, firstAttempt.jobId))?.state, 'running');
+    await assert.rejects(
+      discard.execute(discardAccount, task.taskId, firstAttempt.jobId),
+      { code: 'delivery_active' },
+    );
+
+    // Recover interrupted delivery -> needs_verification, then verification settles to needs_verification.
+    await discardWorker.tick(discardAccount);
+    assert.equal((await jobs.find(discardAccount, firstAttempt.jobId))?.state, 'needs_verification');
+
+    // Attach an agent proposal pointing to this delivery job to verify FK cleanup.
+    const [proposal] = await db.insert(agentDeliveryProposals).values({
+      accountId: discardAccount,
+      source: 'panel',
+      instruction: 'subir guia lab 10',
+      taskId: task.taskId,
+      pdfId: pdf.pdfId,
+      state: 'authorized',
+      deliveryJobId: firstAttempt.jobId,
+    }).returning({ id: agentDeliveryProposals.id });
+    assert.ok(proposal);
+
+    // Trigger read-only verification returning definitive failed and assert Spanish summary.
+    verifyMode = 'failed';
+    await verify.execute(discardAccount, firstAttempt.jobId);
+    await discardWorker.tick(discardAccount);
+    const failedJob = await jobs.find(discardAccount, firstAttempt.jobId);
+    assert.equal(failedJob?.state, 'failed');
+    assert.equal(failedJob?.summary, 'DUTIC confirmó que todavía no hay ningún envío registrado. Puedes volver a intentar.');
+
+    // Wrong account or missing job/task is rejected with not_found.
+    await assert.rejects(discard.execute('other-account', task.taskId, firstAttempt.jobId), { code: 'not_found' });
+    await assert.rejects(discard.execute(discardAccount, task.taskId, randomUUID()), { code: 'not_found' });
+
+    const revisionBefore = await revisions.currentRevision(discardAccount);
+    const discarded = await discard.execute(discardAccount, task.taskId, firstAttempt.jobId);
+    assert.deepEqual(discarded, { jobId: firstAttempt.jobId });
+    assert.deepEqual(discardedProofKeys, ['empty-dutic-proof.png']);
+    assert.equal(await jobs.find(discardAccount, firstAttempt.jobId), null);
+    assert.notEqual(await revisions.currentRevision(discardAccount), revisionBefore);
+
+    // Current PDF is preserved, task has no active delivery, and proposal FK is cleared.
+    const reloadedTask = await tasks.find(discardAccount, task.taskId);
+    assert.equal(reloadedTask?.currentPdf?.pdfId, pdf.pdfId);
+    assert.equal(reloadedTask?.delivery, null);
+    const [reloadedProposal] = await db.select().from(agentDeliveryProposals).where(eq(agentDeliveryProposals.id, proposal.id));
+    assert.equal(reloadedProposal?.deliveryJobId, null);
+
+    // Immediate re-authorization with the EXACT SAME pdfId creates a new job.
+    const secondAttempt = await deliver.execute({ accountId: discardAccount, taskId: task.taskId, pdfId: pdf.pdfId });
+    assert.notEqual(secondAttempt.jobId, firstAttempt.jobId);
+    assert.equal((await jobs.find(discardAccount, secondAttempt.jobId))?.state, 'authorized');
+
+    // Run second attempt into needs_verification and verify discarding needs_verification also works.
+    submitMode = 'needs_verification';
+    verifyMode = 'needs_verification';
+    await discardWorker.tick(discardAccount);
+    assert.equal((await jobs.find(discardAccount, secondAttempt.jobId))?.state, 'needs_verification');
+    await discard.execute(discardAccount, task.taskId, secondAttempt.jobId);
+    assert.deepEqual(discardedProofKeys, ['empty-dutic-proof.png', 'uncertain-proof.png']);
+    assert.equal(await jobs.find(discardAccount, secondAttempt.jobId), null);
+
+    // Re-authorize a third time with the same pdfId, verify concurrent in-flight verification blocks discard, then confirm it.
+    submitMode = 'needs_verification';
+    const thirdAttempt = await deliver.execute({ accountId: discardAccount, taskId: task.taskId, pdfId: pdf.pdfId });
+    await discardWorker.tick(discardAccount);
+    assert.equal((await jobs.find(discardAccount, thirdAttempt.jobId))?.state, 'needs_verification');
+
+    let signalVerifyEntered!: () => void;
+    const verifyEntered = new Promise<void>((resolve) => { signalVerifyEntered = resolve; });
+    let releaseVerify!: () => void;
+    const verifyHold = new Promise<void>((resolve) => { releaseVerify = resolve; });
+    const pausedVerifyWorker = new AcademicWorker(work, fetcher, {
+      submit: customSender.submit,
+      async verify(order) {
+        signalVerifyEntered();
+        await verifyHold;
+        return {
+          state: 'confirmed',
+          evidence: {
+            activityUrl: order.activityUrl,
+            visibleStatus: 'Enviado para calificar',
+            fileName: order.originalName,
+            proofKey: 'confirmed-proof.png',
+            capturedAt: '2026-11-26T10:15:00.000Z',
+          },
+        };
+      },
+    }, files, clock);
+
+    await verify.execute(discardAccount, thirdAttempt.jobId);
+    const inFlightTick = pausedVerifyWorker.tick(discardAccount);
+    await verifyEntered;
+
+    // Concurrent discard during active in-flight verification must be rejected as delivery_active.
+    await assert.rejects(
+      discard.execute(discardAccount, task.taskId, thirdAttempt.jobId),
+      { code: 'delivery_active' },
+    );
+
+    releaseVerify();
+    await inFlightTick;
+    assert.equal((await jobs.find(discardAccount, thirdAttempt.jobId))?.state, 'confirmed');
+
+    // Confirmed delivery cannot be discarded.
+    await assert.rejects(
+      discard.execute(discardAccount, task.taskId, thirdAttempt.jobId),
+      { code: 'delivery_confirmed' },
+    );
+    assert.equal((await jobs.find(discardAccount, thirdAttempt.jobId))?.state, 'confirmed');
   });
 
   await suite.test('la pantalla MVC busca, carga, autoriza y renderiza la confirmación simulada', async () => {

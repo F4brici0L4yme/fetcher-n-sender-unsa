@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sesión DUTIC · Aula Virtual</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/assets/panel.css">
+  <script src="/assets/panel.js" defer></script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Ir al contenido principal</a>
+  <div class="workspace">
+    <header class="mobile-bar">
+      <a href="/" class="brand-lockup">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h8M8 11h5"/></svg>
+        </span>
+        <span class="brand-text">
+          <span class="brand-name">Aula Virtual</span>
+          <span class="brand-sub">UNSA · Local</span>
+        </span>
+      </a>
+      <button type="button" class="btn btn-secondary btn-icon" data-nav-toggle aria-expanded="false" aria-controls="workspace-sidebar" aria-label="Abrir navegación">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+    </header>
+
+    <aside id="workspace-sidebar" class="sidebar" aria-label="Navegación del panel">
+      <div class="sidebar-top">
+        <a href="/" class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h8M8 11h5"/></svg>
+          </span>
+          <span class="brand-text">
+            <span class="brand-name">Aula Virtual</span>
+            <span class="brand-sub">UNSA · Local</span>
+          </span>
+        </a>
+      </div>
+
+      <div id="sidebar-dynamic" class="sidebar-body">
+        <nav class="sidebar-nav" aria-label="Vistas principales">
+          <a href="/" class="nav-item">
+            <span class="nav-item-main">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+              <span>Agenda</span>
+            </span>
+          </a>
+          <a href="/?vista=tareas" class="nav-item">
+            <span class="nav-item-main">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+              <span>Tareas DUTIC</span>
+            </span>
+            {{#if sidebar.hasTaskCount}}<span class="nav-count">{{sidebar.taskCount}}</span>{{/if}}
+          </a>
+          {{#if sidebar.notesEnabled}}
+            <a href="/?vista=notas" class="nav-item">
+              <span class="nav-item-main">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                <span>Mis Notas</span>
+              </span>
+              {{#if sidebar.hasNoteCount}}<span class="nav-count">{{sidebar.noteCount}}</span>{{/if}}
+            </a>
+          {{/if}}
+          <a href="/?vista=completadas" class="nav-item">
+            <span class="nav-item-main">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg>
+              <span>Completadas</span>
+            </span>
+            {{#if sidebar.hasCompletedCount}}<span class="nav-count">{{sidebar.completedCount}}</span>{{/if}}
+          </a>
+          {{#if sidebar.agentEnabled}}
+            <a href="/agente" class="nav-item">
+              <span class="nav-item-main">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 18v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M3 12h3M18 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/><circle cx="12" cy="12" r="3"/></svg>
+                <span>Agente · Harness</span>
+              </span>
+              {{#if sidebar.hasProposalCount}}
+                <span class="nav-count nav-count--alert">{{sidebar.proposalCount}}</span>
+              {{else}}
+                {{#if sidebar.session.isConnected}}<span class="status-dot status-dot--success" aria-hidden="true"></span>{{/if}}
+              {{/if}}
+            </a>
+          {{/if}}
+          <a href="/sesion" class="nav-item is-active" aria-current="page">
+            <span class="nav-item-main">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+              <span>Sesión DUTIC</span>
+            </span>
+            {{#if sidebar.session}}
+              <span class="status-dot status-dot--{{sidebar.session.tone}}" aria-hidden="true"></span>
+            {{/if}}
+          </a>
+        </nav>
+
+        <div class="sidebar-footer">
+          {{#if sidebar.session}}
+            <a href="/sesion" class="session-pill session-pill--{{sidebar.session.tone}}">
+              <span class="session-pill-row">
+                <span class="status-dot status-dot--{{sidebar.session.tone}}" aria-hidden="true"></span>
+                <span class="session-pill-title">{{sidebar.session.stateLabel}}</span>
+              </span>
+              <span class="session-pill-sub">{{#if sidebar.session.isConnected}}{{accountId}}{{else}}Configurar acceso{{/if}}</span>
+            </a>
+          {{else}}
+            <div class="session-pill session-pill--neutral">
+              <span class="session-pill-row">
+                <span class="status-dot status-dot--neutral" aria-hidden="true"></span>
+                <span class="session-pill-title">{{#if demoMode}}Modo de prueba{{else}}{{#if assistedCapture}}Captura asistida{{else}}Espacio local{{/if}}{{/if}}</span>
+              </span>
+              <span class="session-pill-sub">{{accountId}}</span>
+            </div>
+          {{/if}}
+          {{#if sidebar.liveActive}}
+            <div id="sse-status-pill" class="live-indicator">
+              <span class="live-pulse" aria-hidden="true"></span>
+              <span>En vivo · SSE{{#if sidebar.autoSync.enabled}} · {{sidebar.autoSync.shortLabel}}{{/if}}</span>
+            </div>
+          {{/if}}
+        </div>
+      </div>
+    </aside>
+    <div class="sidebar-backdrop" data-nav-backdrop hidden></div>
+
+    <main id="main-content" class="workspace-main" tabindex="-1" {{#if assistedCapture}}data-capture-revision="{{assistedCapture.revision}}"{{/if}} {{#if liveRevision}}data-live-revision="{{liveRevision}}"{{/if}}>
+      <div id="panel-live-status" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+      <div class="content-container">
+        <div class="page-header">
+          <div class="page-header-copy">
+            <h1>Sesión DUTIC</h1>
+            <p class="page-subtitle">Administra la sesión local persistente del navegador para sincronizar tareas y enviar archivos PDF en Aula Virtual.</p>
+          </div>
+          <div class="header-actions">
+            <a href="/" class="btn btn-secondary">Volver a la agenda</a>
+          </div>
+        </div>
+
+        {{#if session}}
+          <section class="sheet-card session-card session-card--{{session.tone}}" aria-labelledby="session-page-title" data-session-state="{{session.state}}">
+            <div class="session-card-header">
+              <div class="session-title-group">
+                <span class="status-dot status-dot--{{session.tone}}" aria-hidden="true"></span>
+                <h2 id="session-page-title">Sesión personal</h2>
+                <span class="badge badge--{{session.tone}}">{{session.stateLabel}}</span>
+              </div>
+              {{#if session.canDisconnect}}
+                <form method="post" action="/sesion/desconectar">
+                  <input type="hidden" name="accountId" value="{{accountId}}">
+                  <input type="hidden" name="returnTo" value="/sesion">
+                  <button type="submit" class="btn btn-danger-outline btn-sm">Desconectar</button>
+                </form>
+              {{/if}}
+            </div>
+
+            <p class="session-message" role="status">{{session.message}}</p>
+            {{#if portalUrl}}
+              <div class="connected-summary" data-configured-portal>
+                <div>
+                  <p class="connected-label">Portal configurado (<code class="mono-inline">AULA_PORTAL_URL</code>)</p>
+                  <p class="mono-value">{{portalUrl}}</p>
+                </div>
+              </div>
+            {{/if}}
+            {{#if sessionError}}<p id="session-error" class="field-error" role="alert">{{sessionError}}</p>{{/if}}
+
+            {{#if session.viewer}}
+              <ol class="session-checklist">
+                <li>
+                  <span class="checklist-num" aria-hidden="true">1</span>
+                  <span>Copia la contraseña temporal del visor local que aparece abajo.</span>
+                </li>
+                <li>
+                  <span class="checklist-num" aria-hidden="true">2</span>
+                  <span>Abre el visor de Aula Virtual e inicia sesión normalmente con tu cuenta institucional.</span>
+                </li>
+                <li>
+                  <span class="checklist-num" aria-hidden="true">3</span>
+                  <span>Al completarse el acceso, este panel pasará automáticamente al estado <strong>Conectada</strong>.</span>
+                </li>
+              </ol>
+
+              <div class="viewer-panel">
+                <div class="viewer-credentials">
+                  <span class="viewer-label">Contraseña temporal del visor</span>
+                  <div class="viewer-code-row">
+                    <code class="password-code">{{session.viewer.password}}</code>
+                    <button type="button" class="btn btn-secondary btn-sm" data-copy-text="{{session.viewer.password}}" data-copy-done="Copiada">
+                      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      <span>Copiar contraseña</span>
+                    </button>
+                  </div>
+                  <p class="field-help">Esta contraseña solo protege el visor local temporal; no es tu contraseña de Aula Virtual.</p>
+                </div>
+                <a href="{{session.viewer.url}}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+                  <span>Abrir visor de Aula Virtual</span>
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg>
+                </a>
+              </div>
+            {{/if}}
+
+            {{#if session.isDisconnected}}
+              <form method="post" action="/sesion/conectar" class="session-form" {{#if sessionError}}aria-describedby="session-error"{{/if}}>
+                <input type="hidden" name="accountId" value="{{accountId}}">
+                <input type="hidden" name="returnTo" value="/sesion">
+                <label for="session-identity" class="field-label">Correo de tu perfil en Aula Virtual</label>
+                <div class="session-form-row">
+                  <input id="session-identity" type="email" inputmode="email" name="identity" value="{{sessionIdentity}}" placeholder="estudiante@unsa.edu.pe" autocomplete="email" required {{#if sessionError}}aria-invalid="true" aria-describedby="session-error"{{/if}}>
+                  <button type="submit" class="btn btn-primary">Conectar sesión</button>
+                </div>
+                <p class="field-help">Se creará un perfil aislado en tu equipo para iniciar sesión directamente en DUTIC.</p>
+              </form>
+            {{/if}}
+
+            {{#if session.isConnected}}
+              <div class="connected-summary">
+                <div>
+                  <p class="connected-label">Espacio activo</p>
+                  <p class="mono-value">{{accountId}}</p>
+                </div>
+                <a href="/" class="btn btn-primary">Ir a la agenda</a>
+              </div>
+            {{/if}}
+          </section>
+
+          <ul class="trust-strip" aria-label="Garantías de seguridad local">
+            <li class="trust-item">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span>Perfil aislado por cuenta</span>
+            </li>
+            <li class="trust-item">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+              <span>Sin contraseñas en texto plano</span>
+            </li>
+            <li class="trust-item">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+              <span>Ejecución headless en segundo plano</span>
+            </li>
+          </ul>
+        {{else}}
+          <section class="empty-state-sheet" aria-labelledby="session-disabled-title">
+            <div class="empty-state-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="M12 8v4M12 16h.01"/></svg>
+            </div>
+            <h2 id="session-disabled-title">Sesión personal no activa en este modo</h2>
+            <p class="empty-state-copy">
+              {{#if demoMode}}
+                La aplicación está corriendo en modo de prueba simulado y no requiere iniciar sesión en Aula Virtual.
+              {{else}}
+                {{#if assistedCapture}}
+                  La captura asistida importa las tareas desde el chat de Codex sin abrir un navegador persistente desde el panel.
+                {{else}}
+                  Inicia el servicio con el modo personal de navegador habilitado para conectar tu cuenta de Aula Virtual.
+                {{/if}}
+              {{/if}}
+            </p>
+            {{#unless demoMode}}
+              {{#if portalUrl}}
+                <div class="connected-summary" data-configured-portal>
+                  <div>
+                    <p class="connected-label">Portal configurado (<code class="mono-inline">AULA_PORTAL_URL</code>)</p>
+                    <p class="mono-value">{{portalUrl}}</p>
+                  </div>
+                </div>
+              {{/if}}
+            {{/unless}}
+            <div class="empty-state-actions">
+              <a href="/" class="btn btn-secondary">Volver a la agenda</a>
+            </div>
+          </section>
+        {{/if}}
+      </div>
+    </main>
+  </div>
+</body>
+</html>

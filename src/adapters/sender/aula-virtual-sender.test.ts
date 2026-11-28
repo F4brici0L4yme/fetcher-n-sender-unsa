@@ -224,3 +224,55 @@ test('verify marks open or closed assignment with zero attachments as definitive
   };
   assert.equal((await simulate([openWithFile]).sender.verify(order)).state, 'needs_verification');
 });
+
+test('uses editor.hasMutated() to return failed on pre-flight errors and needs_verification after mutation', async () => {
+  const runWithEditor = async (mutatedBeforeThrow: boolean) => {
+    const calls: string[] = [];
+    let mutated = false;
+    const editor: DeliveryPageEditor = {
+      async inspect() {
+        calls.push('inspect');
+        return initial;
+      },
+      async attachAndSave() {
+        calls.push('attach');
+        mutated = mutatedBeforeThrow;
+        throw new Error(mutatedBeforeThrow ? 'Network dropped after saving draft.' : 'Pre-flight control missing.');
+      },
+      async submitForGrading() {
+        calls.push('submit');
+      },
+      hasMutated() {
+        return mutated;
+      },
+      async close() {
+        calls.push('close');
+      },
+    };
+    const browser: AulaVirtualDeliveryBrowser = {
+      async openForSubmission() {
+        calls.push('edit');
+        return { kind: 'opened', page: editor };
+      },
+      async openForVerification() {
+        calls.push('read');
+        return { kind: 'opened', page: editor };
+      },
+    };
+    const sender = new AulaVirtualSender({
+      portalUrl: 'https://aula.example.edu/2026B/',
+      accountId: order.accountId,
+      browser,
+    });
+    const result = await sender.submit(order);
+    return { calls, result };
+  };
+
+  const preFlight = await runWithEditor(false);
+  assert.deepEqual(preFlight.result, { state: 'failed' });
+  assert.deepEqual(preFlight.calls, ['edit', 'inspect', 'attach', 'close']);
+
+  const postMutation = await runWithEditor(true);
+  assert.deepEqual(postMutation.result, { state: 'needs_verification' });
+  assert.deepEqual(postMutation.calls, ['edit', 'inspect', 'attach', 'close']);
+});

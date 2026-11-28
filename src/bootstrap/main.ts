@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { createApplication } from './application';
 import { readConfig } from './config';
+import { sanitizeErrorDiagnostic } from './sanitize-error';
 
 async function main() {
   const config = readConfig();
@@ -14,7 +15,7 @@ async function main() {
   }
 }
 
-void main().catch(() => {
-  console.error('No se pudo iniciar la aplicación. Revisa la configuración y las migraciones.');
+void main().catch((error) => {
+  console.error(`No se pudo iniciar la aplicación. Revisa la configuración y las migraciones. (${sanitizeErrorDiagnostic(error)})`);
   process.exitCode = 1;
 });

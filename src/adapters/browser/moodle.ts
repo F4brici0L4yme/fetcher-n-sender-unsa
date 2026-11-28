@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { BrowserContext, Locator, Page } from 'playwright';
+import type { BrowserContext, Locator, Page, Request } from 'playwright';
 import { visibleDeadline } from '../../core/domain/deadline';
 import type { CapturedAssignment } from '../../core/domain/model';
 import type { AuthorizedAttachment, DeliveryPageEditor, DeliveryPageObservation, DeliveryTarget } from '../sender/aula-virtual-delivery-browser';
@@ -418,12 +418,51 @@ async function extractDeadline(page: Page): Promise<string | null> {
   return null;
 }
 
+function canonicalizeAssignmentUrl(rawUrl: string, portal: string): string | null {
+  const validated = validatePortalLink(rawUrl, portal, true);
+  if (!validated) return null;
+  try {
+    const parsed = new URL(validated);
+    if (!parsed.pathname.endsWith('/mod/assign/view.php')) return null;
+    const id = parsed.searchParams.get('id')?.trim();
+    if (!id || !/^\d+$/.test(id)) return null;
+    const canonical = new URL(parsed.pathname, parsed.origin);
+    canonical.searchParams.set('id', id);
+    return validatePortalLink(canonical.href, portal, true);
+  } catch {
+    return null;
+  }
+}
+
+async function extractAssignmentTitle(page: Page): Promise<string> {
+  const candidates = [
+    page.locator('.page-header-headings h1').first(),
+    page.locator('[role="main"] h1').first(),
+    page.locator('h1').last(),
+  ];
+  for (const locator of candidates) {
+    if ((await locator.count()) > 0) {
+      const text = normalizeText(await locator.innerText().catch(() => ''));
+      if (text) return text;
+    }
+  }
+  return '';
+}
+
+async function isRestrictedActivity(page: Page): Promise<boolean> {
+  if ((await page.locator('.submissionstatustable').count()) > 0) return false;
+  return (await page.locator('.errorbox, .errormessage, [data-rel="fatalerror"], .availabilityinfo').count()) > 0;
+}
+
 export async function captureAssignments(page: Page, portal: string): Promise<CapturedAssignment[]> {
   const courses = new Set<string>();
   const courseNames = new Map<string, string>();
   const activities = new Set<string>();
   const visited = new Set<string>();
-  const queue = [new URL('my/', portal).href, new URL('my/courses.php', portal).href];
+  const myUrl = new URL('my/', portal).href;
+  const myCoursesUrl = new URL('my/courses.php', portal).href;
+  const queue = [myUrl, myCoursesUrl];
+  let seededProfileFallback = false;
   // Bounded traversal only follows course, assignment and pagination links, never arbitrary portal links.
   while (queue.length) {
     const url = queue.shift()!;
@@ -432,18 +471,44 @@ export async function captureAssignments(page: Page, portal: string): Promise<Ca
     visited.add(url);
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     await requirePortalPage(page, portal);
+    const targetPathname = new URL(url).pathname;
+    const currentPathname = new URL(page.url()).pathname;
+    const isDashboardPage = /\/my\/(?:index\.php|courses\.php)?$/.test(targetPathname)
+      || /\/my\/(?:index\.php|courses\.php)?$/.test(currentPathname);
+    if (isDashboardPage) {
+      await page.locator('a[href*="/course/view.php"]').first().waitFor({ state: 'attached', timeout: 2500 }).catch(() => undefined);
+    }
     const idKey = courseIdKey(url) ?? courseIdKey(page.url());
     if (idKey) {
       const heading = await extractCourseHeading(page);
       const finalUrl = validatePortalLink(page.url(), portal, true);
       recordCourseName(courseNames, [url, finalUrl, idKey], heading);
     }
-    for (const activity of await links(page, 'a[href*="/mod/assign/view.php"]', portal)) activities.add(activity);
+    for (const activity of await links(page, 'a[href*="/mod/assign/view.php"]', portal)) {
+      const canonical = canonicalizeAssignmentUrl(activity, portal);
+      if (canonical) activities.add(canonical);
+    }
     for (const course of await links(page, 'a[href*="/course/view.php"]', portal)) {
       if (!courses.has(course)) { courses.add(course); queue.push(course); }
     }
+    if (targetPathname.endsWith('/user/profile.php') || currentPathname.endsWith('/user/profile.php')) {
+      for (const userLink of await links(page, 'a[href*="/user/view.php"]', portal)) {
+        const courseId = new URL(userLink).searchParams.get('course')?.trim();
+        if (!courseId || !/^\d+$/.test(courseId)) continue;
+        const canonicalCourse = validatePortalLink(new URL(`course/view.php?id=${courseId}`, portal).href, portal, true);
+        if (canonicalCourse && !courses.has(canonicalCourse)) {
+          courses.add(canonicalCourse);
+          queue.push(canonicalCourse);
+        }
+      }
+    }
     for (const next of await links(page, '.pagination a[href], .paging a[href], a[rel="next"]', portal)) {
       if (!visited.has(next)) queue.push(next);
+    }
+    if (!seededProfileFallback && visited.has(myUrl) && visited.has(myCoursesUrl) && courses.size === 0) {
+      seededProfileFallback = true;
+      const profileUrl = validatePortalLink(new URL('user/profile.php', portal).href, portal, true);
+      if (profileUrl && !visited.has(profileUrl)) queue.push(profileUrl);
     }
     if (courses.size > 50 || activities.size > 500) throw new Error('Capture activity limit exceeded');
   }
@@ -451,10 +516,11 @@ export async function captureAssignments(page: Page, portal: string): Promise<Ca
   for (const activityUrl of activities) {
     await page.goto(activityUrl, { waitUntil: 'domcontentloaded' });
     await requirePortalPage(page, portal);
+    if (await isRestrictedActivity(page)) continue;
     const observation = await assignmentObservation(page);
     if (observation.state === 'submitted' || observation.state === 'closed') continue;
     const externalId = new URL(activityUrl).searchParams.get('id');
-    const title = normalizeText(await page.locator('h1').last().innerText());
+    const title = await extractAssignmentTitle(page);
     const course = await resolveCourseName(page, portal, courseNames, title);
     if (!externalId || !/^\d+$/.test(externalId) || !title || !course) throw new Error('Missing assignment identity');
     const parsedDeadline = await extractDeadline(page);
@@ -516,6 +582,15 @@ async function assignmentObservation(page: Page) {
     return collect(fallbackAnchors);
   });
   return { visibleStatus, state, attachments };
+}
+
+const SUBMIT_CONTROL_PATTERN = /^(enviar tarea|enviar env[ií]o|enviar trabajo|entregar tarea|submit assignment)$/i;
+const CONFIRM_CONTROL_PATTERN = /^(continuar|continue|confirmar|confirm)$/i;
+
+function actionControl(page: Page, pattern: RegExp): Locator {
+  const buttonsAndLinks = page.locator('button:visible, a.btn:visible').filter({ hasText: pattern });
+  const submitInputs = page.locator('input[type="submit"]').and(page.getByRole('button', { name: pattern }));
+  return buttonsAndLinks.or(submitInputs);
 }
 
 async function clickSingle(locator: Locator) {
@@ -708,111 +783,177 @@ export class MoodleDeliveryPage implements DeliveryPageEditor {
     edit.searchParams.set('action', 'editsubmission');
     await this.page.goto(edit.href, { waitUntil: 'domcontentloaded' });
     await requirePortalPage(this.page, this.portal);
-    const fileManager = this.page.locator('.filemanager:not(.fp-select)');
-    const hasFileManager = (await fileManager.count()) > 0;
-    if (hasFileManager) {
-      await this.page.locator('.filemanager:not(.fp-select):not(.fm-loading)').first().waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
-    }
-    const existing = fileManager.locator('.fp-file:not(.fp-folder)');
-    if (await existing.count() > 0) throw new Error('Existing draft must not be replaced');
+    const onRequest = (req: Request) => {
+      if (!['GET', 'HEAD'].includes(req.method())) this.mutated = true;
+    };
+    this.page.on('request', onRequest);
+    try {
+      const fileManager = this.page.locator('.filemanager:not(.fp-select)');
+      const hasFileManager = (await fileManager.count()) > 0;
+      if (hasFileManager) {
+        await this.page.locator('.filemanager:not(.fp-select):not(.fm-loading)').first().waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
+      }
+      const existing = fileManager.locator('.fp-file:not(.fp-folder)');
+      if (await existing.count() > 0) throw new Error('Existing draft must not be replaced');
 
-    const focusedUploadInput = this.page.locator('.moodle-dialogue-focused .fp-upload-form input[type="file"]:visible');
-    const visibleUploadInput = this.page.locator('.fp-upload-form input[type="file"]:visible');
+      const focusedUploadInput = this.page.locator('.moodle-dialogue-focused .fp-upload-form input[type="file"]:visible');
+      const visibleUploadInput = this.page.locator('.fp-upload-form input[type="file"]:visible');
 
-    if (hasFileManager && (await focusedUploadInput.count()) === 0 && (await visibleUploadInput.count()) === 0) {
-      const visibleAddButton = fileManager.locator('.fp-btn-add a:visible, .fp-btn-add button:visible');
-      const addButton = (await visibleAddButton.count()) > 0
-        ? visibleAddButton
-        : fileManager.locator('.fp-btn-add a, .fp-btn-add button');
-      if ((await addButton.count()) > 0) {
-        await clickSingle(addButton);
-        const repoArea = this.page.locator('.moodle-dialogue-focused .fp-repo-area:visible, .fp-repo-area:visible');
-        await repoArea.or(focusedUploadInput).or(visibleUploadInput).first().waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
-        if ((await focusedUploadInput.count()) === 0 && (await visibleUploadInput.count()) === 0) {
-          const focusedRepo = this.page.locator('.moodle-dialogue-focused .fp-repo-area .fp-repo:visible').filter({ hasText: /subir un archivo|upload a file/i });
-          const visibleRepo = this.page.locator('.fp-repo-area .fp-repo:visible').filter({ hasText: /subir un archivo|upload a file/i });
-          const fallbackRepo = this.page.locator('.fp-repo-area .fp-repo').filter({ hasText: /subir un archivo|upload a file/i });
-          const repo = (await focusedRepo.count()) > 0 ? focusedRepo : (await visibleRepo.count()) > 0 ? visibleRepo : fallbackRepo;
-          await clickSingle(repo);
-          await focusedUploadInput.or(visibleUploadInput).first().waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
+      if (hasFileManager && (await focusedUploadInput.count()) === 0 && (await visibleUploadInput.count()) === 0) {
+        const visibleAddButton = fileManager.locator('.fp-btn-add a:visible, .fp-btn-add button:visible');
+        const addButton = (await visibleAddButton.count()) > 0
+          ? visibleAddButton
+          : fileManager.locator('.fp-btn-add a, .fp-btn-add button');
+        if ((await addButton.count()) > 0) {
+          await clickSingle(addButton);
+          const repoArea = this.page.locator('.moodle-dialogue-focused .fp-repo-area:visible, .fp-repo-area:visible');
+          await repoArea.or(focusedUploadInput).or(visibleUploadInput).first().waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
+          if ((await focusedUploadInput.count()) === 0 && (await visibleUploadInput.count()) === 0) {
+            const focusedRepo = this.page.locator('.moodle-dialogue-focused .fp-repo-area .fp-repo:visible').filter({ hasText: /subir un archivo|upload a file/i });
+            const visibleRepo = this.page.locator('.fp-repo-area .fp-repo:visible').filter({ hasText: /subir un archivo|upload a file/i });
+            const fallbackRepo = this.page.locator('.fp-repo-area .fp-repo').filter({ hasText: /subir un archivo|upload a file/i });
+            const repo = (await focusedRepo.count()) > 0 ? focusedRepo : (await visibleRepo.count()) > 0 ? visibleRepo : fallbackRepo;
+            await clickSingle(repo);
+            await focusedUploadInput.or(visibleUploadInput).first().waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
+          }
         }
       }
-    }
 
-    const inputCandidates: Locator[] = [
-      focusedUploadInput,
-      visibleUploadInput,
-      this.page.locator('.moodle-dialogue-focused .fp-upload-form input[type="file"]'),
-      this.page.locator('.fp-upload-form input[type="file"]'),
-      this.page.locator('input[type="file"]:visible'),
-      this.page.locator('input[type="file"]'),
-    ];
-    let input: Locator | null = null;
-    for (const candidate of inputCandidates) {
-      const count = await candidate.count();
-      if (count === 1) {
-        input = candidate;
-        break;
+      const inputCandidates: Locator[] = [
+        focusedUploadInput,
+        visibleUploadInput,
+        this.page.locator('.moodle-dialogue-focused .fp-upload-form input[type="file"]'),
+        this.page.locator('.fp-upload-form input[type="file"]'),
+        this.page.locator('input[type="file"]:visible'),
+        this.page.locator('input[type="file"]'),
+      ];
+      let input: Locator | null = null;
+      for (const candidate of inputCandidates) {
+        const count = await candidate.count();
+        if (count === 1) {
+          input = candidate;
+          break;
+        }
+        if (count > 1 && (candidate === focusedUploadInput || candidate === visibleUploadInput)) {
+          throw new Error('Ambiguous Moodle file upload');
+        }
       }
-      if (count > 1 && (candidate === focusedUploadInput || candidate === visibleUploadInput)) {
-        throw new Error('Ambiguous Moodle file upload');
-      }
-    }
-    if (!input) throw new Error('Ambiguous Moodle file upload');
-    await input.setInputFiles(payload);
+      if (!input) throw new Error('Ambiguous Moodle file upload');
+      await input.setInputFiles(payload);
 
-    const focusedUploadBtn = this.page.locator('.moodle-dialogue-focused .fp-upload-btn:visible');
-    const visibleUploadBtn = this.page.locator('.fp-upload-btn:visible');
-    const pickerUpload = (await focusedUploadBtn.count()) > 0
-      ? focusedUploadBtn
-      : (await visibleUploadBtn.count()) > 0
-        ? visibleUploadBtn
-        : hasFileManager
-          ? this.page.locator('.fp-upload-btn')
-          : null;
-    if (pickerUpload && (await pickerUpload.count()) > 0) {
-      const focusedSaveAs = this.page.locator('.moodle-dialogue-focused .fp-upload-form input[name="title"]:visible');
-      const visibleSaveAs = this.page.locator('.fp-upload-form input[name="title"]:visible');
-      const saveAs = (await focusedSaveAs.count()) === 1
-        ? focusedSaveAs
-        : (await visibleSaveAs.count()) === 1
-          ? visibleSaveAs
-          : this.page.locator('.fp-upload-form input[name="title"]');
-      if ((await saveAs.count()) === 1) await saveAs.fill(attachment.originalName);
-      await clickSingle(pickerUpload);
-      await fileManager.locator('.fp-file:not(.fp-folder)').first().waitFor({ state: 'visible', timeout: 12_000 });
-      await this.page.locator('.moodle-dialogue-focused').first().waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => undefined);
+      const focusedUploadBtn = this.page.locator('.moodle-dialogue-focused .fp-upload-btn:visible');
+      const visibleUploadBtn = this.page.locator('.fp-upload-btn:visible');
+      const pickerUpload = (await focusedUploadBtn.count()) > 0
+        ? focusedUploadBtn
+        : (await visibleUploadBtn.count()) > 0
+          ? visibleUploadBtn
+          : hasFileManager
+            ? this.page.locator('.fp-upload-btn')
+            : null;
+      if (pickerUpload && (await pickerUpload.count()) > 0) {
+        const focusedSaveAs = this.page.locator('.moodle-dialogue-focused .fp-upload-form input[name="title"]:visible');
+        const visibleSaveAs = this.page.locator('.fp-upload-form input[name="title"]:visible');
+        const saveAs = (await focusedSaveAs.count()) === 1
+          ? focusedSaveAs
+          : (await visibleSaveAs.count()) === 1
+            ? visibleSaveAs
+            : this.page.locator('.fp-upload-form input[name="title"]');
+        if ((await saveAs.count()) === 1) await saveAs.fill(attachment.originalName);
+        if (await pickerUpload.count() !== 1) throw new Error('Expected one Moodle control');
+        this.mutated = true;
+        await pickerUpload.click();
+        await fileManager.locator('.fp-file:not(.fp-folder)').first().waitFor({ state: 'visible', timeout: 12_000 });
+        await this.page.locator('.moodle-dialogue-focused').first().waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => undefined);
+      }
+      this.mutated = true;
+      await Promise.all([
+        this.page.waitForURL((url) => url.href !== edit.href, { waitUntil: 'domcontentloaded' }).catch(() => this.page.waitForLoadState('domcontentloaded')),
+        clickSingle(this.page.getByRole('button', { name: /^(guardar cambios|save changes)$/i })),
+      ]);
+      await requirePortalPage(this.page, this.portal);
+    } finally {
+      this.page.off('request', onRequest);
     }
-    this.mutated = true;
-    await Promise.all([
-      this.page.waitForURL((url) => url.href !== edit.href, { waitUntil: 'domcontentloaded' }).catch(() => this.page.waitForLoadState('domcontentloaded')),
-      clickSingle(this.page.getByRole('button', { name: /^(guardar cambios|save changes)$/i })),
-    ]);
-    await requirePortalPage(this.page, this.portal);
   }
+
+  hasMutated(): boolean { return this.mutated; }
 
   async submitForGrading(): Promise<void> {
     await verifyIdentity(this.page, this.portal, this.expectedIdentity);
-    const submitUrl = this.page.url();
-    await Promise.all([
-      this.page.waitForNavigation({ waitUntil: 'domcontentloaded' }).catch(() => this.page.waitForLoadState('domcontentloaded')),
-      clickSingle(this.page.getByRole('button', { name: /^(enviar tarea|enviar env[ií]o|enviar trabajo|entregar tarea|submit assignment)$/i })),
-    ]);
-    if (this.page.url() === submitUrl) await this.page.waitForLoadState('domcontentloaded');
-    await requirePortalPage(this.page, this.portal);
-    // Do not attest to an authorship declaration on the student's behalf.
-    if (await this.page.locator('input[name="submissionstatement"], #id_submissionstatement').count()) throw new Error('Student declaration requires manual verification');
-    const confirm = this.page.getByRole('button', { name: /^(continuar|continue|confirmar|confirm)$/i });
-    if (await confirm.count() === 1) {
+    const onRequest = (req: Request) => {
+      if (!['GET', 'HEAD'].includes(req.method())) this.mutated = true;
+    };
+    this.page.on('request', onRequest);
+    try {
+      const submitControl = actionControl(this.page, SUBMIT_CONTROL_PATTERN);
+      if (await submitControl.count() !== 1) throw new Error('Expected one Moodle control');
+      const currentUrl = this.page.url();
+      this.mutated = true;
       await Promise.all([
-        this.page.waitForNavigation({ waitUntil: 'domcontentloaded' }).catch(() => this.page.waitForLoadState('domcontentloaded')),
-        confirm.click(),
+        this.page.waitForURL((url) => url.href !== currentUrl, { waitUntil: 'domcontentloaded' }).catch(() => this.page.waitForLoadState('domcontentloaded')),
+        submitControl.click(),
       ]);
+      if (this.page.url() === currentUrl) await this.page.waitForLoadState('domcontentloaded');
       await requirePortalPage(this.page, this.portal);
+      // Do not attest to an authorship declaration on the student's behalf.
+      if (await this.page.locator('input[name="submissionstatement"], #id_submissionstatement').count()) throw new Error('Student declaration requires manual verification');
+      const confirm = actionControl(this.page, CONFIRM_CONTROL_PATTERN);
+      if (await confirm.count() === 1) {
+        const confirmUrl = this.page.url();
+        await Promise.all([
+          this.page.waitForURL((url) => url.href !== confirmUrl, { waitUntil: 'domcontentloaded' }).catch(() => this.page.waitForLoadState('domcontentloaded')),
+          confirm.click(),
+        ]);
+        await requirePortalPage(this.page, this.portal);
+      }
+    } finally {
+      this.page.off('request', onRequest);
     }
   }
 
   close() { return this.closeContext(); }
+}
+
+const READONLY_MOODLE_AJAX_METHODS = new Set<string>([
+  'core_course_get_enrolled_courses_by_timeline_classification',
+  'core_course_get_recent_courses',
+]);
+
+function isAllowedReadOnlyMoodleAjax(request: Request, portal: string): boolean {
+  if (request.isNavigationRequest() || request.method() !== 'POST') return false;
+  try {
+    const normalizedRoot = new URL(portal);
+    if (!normalizedRoot.pathname.endsWith('/')) normalizedRoot.pathname += '/';
+    const expectedPathname = new URL('lib/ajax/service.php', normalizedRoot).pathname;
+    const url = new URL(request.url());
+    if (
+      url.protocol !== 'https:'
+      || url.origin !== normalizedRoot.origin
+      || url.username
+      || url.password
+      || url.pathname !== expectedPathname
+    ) {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+  const raw = request.postData();
+  if (!raw || raw.length > 32_768) return false;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0 || parsed.length > 5) return false;
+    return parsed.every((entry) => (
+      typeof entry === 'object'
+      && entry !== null
+      && !Array.isArray(entry)
+      && Object.hasOwn(entry, 'methodname')
+      && typeof (entry as { methodname?: unknown }).methodname === 'string'
+      && READONLY_MOODLE_AJAX_METHODS.has((entry as { methodname: string }).methodname)
+    ));
+  } catch {
+    return false;
+  }
 }
 
 export async function secureContext(context: BrowserContext, portal: string, readOnly: boolean) {
@@ -821,7 +962,9 @@ export async function secureContext(context: BrowserContext, portal: string, rea
   await context.route('**/*', async (route) => {
     const request = route.request();
     if (request.isNavigationRequest() && !validatePortalLink(request.url(), portal, readOnly)) return route.abort();
-    if (readOnly && !['GET', 'HEAD'].includes(request.method())) return route.abort();
+    if (readOnly && !['GET', 'HEAD'].includes(request.method()) && !isAllowedReadOnlyMoodleAjax(request, portal)) {
+      return route.abort();
+    }
     await route.fallback();
   });
 }

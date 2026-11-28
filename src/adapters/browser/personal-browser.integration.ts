@@ -1079,3 +1079,400 @@ test('browser.verify returns failed on empty DUTIC status and confirmed with rea
   assert.ok(confirmedResult.evidence.proofKey, 'Expected PNG proof on SHA-256 confirmed verification');
   assert.equal(pluginfileHits, 3);
 });
+
+test('Moodle 4.x read-only AJAX course discovery, URL canonicalization, profile fallback, and anchor submit controls', async (t) => {
+  assert.ok(process.env.DATABASE_URL, 'Run in Docker with isolated PostgreSQL.');
+  const url = new URL(process.env.DATABASE_URL);
+  const database = 'browser_test_' + randomUUID().replaceAll('-', '');
+  const admin = new Pool({ connectionString: url.href });
+  await admin.query('create database ' + database);
+  url.pathname = '/' + database;
+  const pool = new Pool({ connectionString: url.href });
+  await migrate(drizzle(pool), { migrationsFolder: 'src/adapters/persistence/migrations' });
+  const root = await mkdtemp(join(tmpdir(), 'personal-browser-moodle4-ajax-'));
+
+  let dashboardMode: 'ajax' | 'profile-fallback' = 'ajax';
+  let readAjaxHits = 0;
+  let writeAjaxHits = 0;
+  let uploadedName = '';
+  let confirmPending = false;
+  let submitted = false;
+
+  const launch = async (profile: string, headless: boolean): Promise<BrowserContext> => {
+    const context = await chromium.launchPersistentContext(profile, {
+      headless: true,
+      chromiumSandbox: true,
+      executablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
+    });
+    if (!headless) await context.addCookies([{ name: 'MoodleSession', value: 'synthetic-session', url: portal }]);
+    await context.route('**/*', async (route) => {
+      const request = route.request();
+      const u = new URL(request.url());
+      if (u.origin !== new URL(portal).origin) return route.abort();
+      if (!(await request.headerValue('cookie'))?.includes('MoodleSession=synthetic-session')) {
+        return route.fulfill({ contentType: 'text/html; charset=utf-8', body: '<form id="login"><input name="username"></form>' });
+      }
+      if (u.pathname.endsWith('/lib/ajax/service.php') && request.method() === 'POST') {
+        const calls = JSON.parse(request.postData() ?? '[]') as Array<{ methodname?: string }>;
+        if (calls.some((call) => call.methodname === 'mod_assign_save_submission')) {
+          writeAjaxHits += 1;
+          return route.fulfill({ status: 200, contentType: 'application/json', body: '[{"error":false}]' });
+        }
+        if (calls.some((call) => call.methodname === 'core_course_get_enrolled_courses_by_timeline_classification')) {
+          readAjaxHits += 1;
+          return route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify([{
+              error: false,
+              data: {
+                courses: [{
+                  id: 55,
+                  fullname: '26B SISTEMAS: COMPILADORES',
+                  viewurl: `${portal}course/view.php?id=55`,
+                }],
+              },
+            }]),
+          });
+        }
+        return route.fulfill({ status: 400, contentType: 'application/json', body: '[]' });
+      }
+
+      let body = '';
+      if (u.pathname.endsWith('/user/profile.php')) {
+        const courseList = dashboardMode === 'profile-fallback'
+          ? `<section class="node_category"><ul><li><a href="${portal}user/view.php?id=7&course=77">Sistemas Distribuidos</a></li></ul></section>`
+          : '';
+        body = `<div class="userprofile"><dl><dt>Dirección de correo</dt><dd><a href="mailto:${email}">${email}</a></dd></dl>${courseList}</div>`;
+      } else if (u.pathname.endsWith('/my/courses.php')) {
+        if (dashboardMode === 'ajax') {
+          body = `
+            <main id="region-main"><div id="myoverview"></div></main>
+            <script>
+              (async () => {
+                let writeBlocked = false;
+                try {
+                  await fetch(${JSON.stringify(`${portal}lib/ajax/service.php?sesskey=synthetic-key&info=mod_assign_save_submission`)}, {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify([{ index: 0, methodname: 'mod_assign_save_submission', args: { assignmentid: 99 } }]),
+                  });
+                } catch {
+                  writeBlocked = true;
+                }
+                if (!writeBlocked) return;
+                const response = await fetch(${JSON.stringify(`${portal}lib/ajax/service.php?sesskey=synthetic-key&info=core_course_get_enrolled_courses_by_timeline_classification`)}, {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify([{ index: 0, methodname: 'core_course_get_enrolled_courses_by_timeline_classification', args: { classification: 'inprogress' } }]),
+                });
+                const payload = await response.json();
+                const container = document.getElementById('myoverview');
+                for (const course of payload[0].data.courses) {
+                  const link = document.createElement('a');
+                  link.href = course.viewurl;
+                  link.textContent = course.fullname;
+                  container.appendChild(link);
+                }
+              })();
+            </script>`;
+        } else {
+          body = '<main id="region-main"><p>Sin cursos en vista general</p></main>';
+        }
+      } else if (u.pathname.endsWith('/course/view.php') && u.searchParams.get('id') === '55') {
+        body = `
+          <header id="page-header"><div class="page-header-headings"><h1>26B SISTEMAS: COMPILADORES</h1></div></header>
+          <main id="region-main">
+            <a href="${portal}mod/assign/view.php?id=99&forceview=1">Laboratorio 09</a>
+          </main>`;
+      } else if (u.pathname.endsWith('/course/view.php') && u.searchParams.get('id') === '77') {
+        body = `
+          <header id="page-header"><div class="page-header-headings"><h1>26B SISTEMAS: DISTRIBUIDOS</h1></div></header>
+          <main id="region-main">
+            <a href="${portal}mod/assign/view.php?id=101&forceview=1">Laboratorio 10</a>
+          </main>`;
+      } else if (u.pathname.endsWith('/mod/assign/view.php') && u.searchParams.get('id') === '99') {
+        const action = u.searchParams.get('action');
+        if (request.method() === 'POST') {
+          const raw = request.postData() ?? '';
+          if (action === 'savesubmission') {
+            uploadedName = raw.match(/filename="([^"]+)"/)?.[1] ?? '';
+            return route.fulfill({
+              status: 303,
+              headers: { location: `${portal}mod/assign/view.php?id=99` },
+              contentType: 'text/html; charset=utf-8',
+              body: '',
+            });
+          }
+          if (action === 'confirm' && confirmPending) {
+            submitted = true;
+            confirmPending = false;
+            return route.fulfill({
+              status: 303,
+              headers: { location: `${portal}mod/assign/view.php?id=99` },
+              contentType: 'text/html; charset=utf-8',
+              body: '',
+            });
+          }
+        }
+        if (action === 'editsubmission') {
+          body = '<form method="post" enctype="multipart/form-data" action="?id=99&action=savesubmission"><input type="file" name="file"><button type="submit">Guardar cambios</button></form>';
+        } else if (action === 'submit') {
+          confirmPending = true;
+          body = '<main id="region-main"><h1>Confirmar entrega</h1><form method="post" action="?id=99&action=confirm"><input type="submit" value="Continuar"></form></main>';
+        } else {
+          const statusText = submitted
+            ? 'Enviado para calificar'
+            : uploadedName
+              ? 'Borrador (no enviado)'
+              : 'Todavía no se han realizado envíos';
+          const fileCell = uploadedName
+            ? `<div class="fileuploadsubmission"><a href="${portal}pluginfile.php/99/assignsubmission_file/submission_files/1/${uploadedName}">${uploadedName}</a></div>`
+            : '';
+          body = `
+            <nav class="breadcrumb"><a href="${portal}course/view.php?id=55" title="26B SISTEMAS: COMPILADORES">26B_55-COMP</a></nav>
+            <header id="page-header"><div class="page-header-headings"><h1>Laboratorio 09</h1></div></header>
+            <main role="main" id="region-main">
+              <div class="submissionstatustable">
+                <table>
+                  <tr><th>Estado de la entrega</th><td>${statusText}</td></tr>
+                  <tr><th>Fecha de entrega</th><td>12 de diciembre de 2099, 23:59</td></tr>
+                  <tr><th>Archivos enviados</th><td>${fileCell}</td></tr>
+                </table>
+              </div>
+              <a href="?id=99&action=editsubmission">Agregar entrega</a>
+              <a class="btn btn-primary" href="?id=99&action=submit">Enviar tarea</a>
+            </main>
+            <footer><h1>Pie de página</h1></footer>`;
+        }
+      } else if (u.pathname.endsWith('/mod/assign/view.php') && u.searchParams.get('id') === '101') {
+        body = `
+          <nav class="breadcrumb"><a href="${portal}course/view.php?id=77" title="26B SISTEMAS: DISTRIBUIDOS">26B_77-DIST</a></nav>
+          <main role="main" id="region-main">
+            <h1>Laboratorio 10</h1>
+            <div class="submissionstatustable">
+              <table>
+                <tr><th>Estado de la entrega</th><td>Todavía no se han realizado envíos</td></tr>
+                <tr><th>Fecha de entrega</th><td>15 de diciembre de 2099, 23:59</td></tr>
+              </table>
+            </div>
+          </main>`;
+      } else {
+        body = '<main id="region-main"><p>Área personal</p></main>';
+      }
+      await route.fulfill({
+        contentType: 'text/html; charset=utf-8',
+        body: `<body class="loggedin"><div class="usermenu"><a href="${portal}user/profile.php">Perfil</a></div>${body}</body>`,
+      });
+    });
+    return context;
+  };
+
+  const browser = new PersonalBrowser(pool, {
+    portalUrl: portal,
+    profileDir: join(root, 'profiles'),
+    accountNamespace: 'personal-moodle4-ajax',
+    initialAccountId: 'initial',
+    viewer: { async start() {}, async stop() {} },
+  }, { launch, loginTimeoutMs: 15000, loginPollMs: 20 });
+
+  t.after(async () => {
+    await browser.close();
+    await pool.end();
+    await admin.query('drop database ' + database);
+    await admin.end();
+    await rm(root, { recursive: true, force: true });
+  });
+
+  await browser.initialize();
+  await browser.connect(email);
+  for (let n = 0; n < 500 && (await browser.status()).state === 'connecting'; n++) await sleep(20);
+  assert.equal((await browser.status()).state, 'connected');
+  const accountId = browser.current();
+
+  // 1. Capture via Moodle 4.x read-only AJAX course discovery; write AJAX is aborted; forceview=1 is canonicalized.
+  const capture = await browser.fetch({ jobId: 'moodle4-ajax-capture', accountId });
+  assert.equal(capture.kind, 'success');
+  if (capture.kind !== 'success') return;
+  assert.ok(readAjaxHits >= 1, 'Expected allowlisted read-only Moodle 4.x AJAX POST to succeed');
+  assert.equal(writeAjaxHits, 0, 'Expected non-allowlisted write AJAX POST to be aborted under secureContext');
+  assert.equal(capture.assignments.length, 1);
+  assert.equal(capture.assignments[0]?.externalId, '99');
+  assert.equal(capture.assignments[0]?.title, 'Laboratorio 09');
+  assert.equal(capture.assignments[0]?.course, '26B SISTEMAS: COMPILADORES');
+  assert.equal(capture.assignments[0]?.activityUrl, `${portal}mod/assign/view.php?id=99`);
+
+  // 2. Submit using the canonicalized activityUrl and Moodle <a class="btn"> submit + <input type="submit"> confirmation.
+  const pdfPath = join(root, 'lab09.pdf');
+  const pdfBytes = Buffer.from('%PDF-1.4 lab 09 anchor submit');
+  await writeFile(pdfPath, pdfBytes, { mode: 0o600 });
+  const delivery = await browser.submit({
+    accountId,
+    jobId: 'moodle4-anchor-submit-99',
+    externalId: '99',
+    activityUrl: capture.assignments[0]!.activityUrl,
+    pdfId: 'pdf-99',
+    localFilePath: pdfPath,
+    originalName: 'Lab09.pdf',
+    sha256: createHash('sha256').update(pdfBytes).digest('hex'),
+  });
+  assert.equal(delivery.state, 'confirmed');
+  assert.equal(uploadedName, 'Lab09.pdf');
+  assert.equal(submitted, true);
+
+  // 3. When my/ and my/courses.php yield zero courses, capture falls back to user/profile.php user/view.php?course=... links.
+  dashboardMode = 'profile-fallback';
+  const fallbackCapture = await browser.fetch({ jobId: 'moodle4-profile-fallback', accountId });
+  assert.equal(fallbackCapture.kind, 'success');
+  if (fallbackCapture.kind !== 'success') return;
+  assert.equal(fallbackCapture.assignments.length, 1);
+  assert.equal(fallbackCapture.assignments[0]?.externalId, '101');
+  assert.equal(fallbackCapture.assignments[0]?.title, 'Laboratorio 10');
+  assert.equal(fallbackCapture.assignments[0]?.course, '26B SISTEMAS: DISTRIBUIDOS');
+  assert.equal(fallbackCapture.assignments[0]?.activityUrl, `${portal}mod/assign/view.php?id=101`);
+});
+
+test('file-picker upload POST followed by wait failure settles to needs_verification instead of failed', async (t) => {
+  assert.ok(process.env.DATABASE_URL, 'Run in Docker with isolated PostgreSQL.');
+  const url = new URL(process.env.DATABASE_URL);
+  const database = 'browser_test_' + randomUUID().replaceAll('-', '');
+  const admin = new Pool({ connectionString: url.href });
+  await admin.query('create database ' + database);
+  url.pathname = '/' + database;
+  const pool = new Pool({ connectionString: url.href });
+  await migrate(drizzle(pool), { migrationsFolder: 'src/adapters/persistence/migrations' });
+  const root = await mkdtemp(join(tmpdir(), 'personal-browser-upload-mutated-'));
+
+  let uploadPostHits = 0;
+
+  const launch = async (profile: string, headless: boolean): Promise<BrowserContext> => {
+    const context = await chromium.launchPersistentContext(profile, {
+      headless: true,
+      chromiumSandbox: true,
+      executablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
+    });
+    if (!headless) await context.addCookies([{ name: 'MoodleSession', value: 'synthetic-session', url: portal }]);
+    await context.route('**/*', async (route) => {
+      const request = route.request();
+      const u = new URL(request.url());
+      if (u.origin !== new URL(portal).origin) return route.abort();
+      if (!(await request.headerValue('cookie'))?.includes('MoodleSession=synthetic-session')) {
+        return route.fulfill({ contentType: 'text/html; charset=utf-8', body: '<form id="login"><input name="username"></form>' });
+      }
+      if (u.pathname.endsWith('/repository/repository_ajax.php') && request.method() === 'POST') {
+        uploadPostHits += 1;
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ id: 1, file: 'stalled-draft.pdf' }),
+        });
+      }
+      let body = '';
+      if (u.pathname.endsWith('/user/profile.php')) {
+        body = `<div class="userprofile"><dl><dt>Dirección de correo</dt><dd><a href="mailto:${email}">${email}</a></dd></dl></div>`;
+      } else if (u.pathname.endsWith('/mod/assign/view.php') && u.searchParams.get('id') === '202') {
+        if (u.searchParams.get('action') === 'editsubmission') {
+          body = `
+            <main id="region-main">
+              <h1>Tarea con carga incompleta</h1>
+              <form method="post" action="?id=202&action=savesubmission">
+                <div class="filemanager">
+                  <div class="fp-btn-add"><a href="#" role="button" id="open-picker">Agregar...</a></div>
+                  <div class="fp-content"></div>
+                </div>
+                <button type="submit">Guardar cambios</button>
+              </form>
+              <div id="filepicker-dialog" style="display:none">
+                <div class="fp-repo-area">
+                  <div class="fp-repo" id="repo-upload"><a href="#">Subir un archivo</a></div>
+                </div>
+                <div class="fp-upload-form" id="active-upload-form" style="display:none">
+                  <input type="file" name="repo_upload_file" id="picker-file">
+                  <input type="text" name="title" id="picker-title">
+                  <button type="button" class="fp-upload-btn" id="picker-upload-btn">Subir este archivo</button>
+                </div>
+              </div>
+              <script>
+                document.getElementById('open-picker').addEventListener('click', (e) => {
+                  e.preventDefault();
+                  const dlg = document.getElementById('filepicker-dialog');
+                  dlg.classList.add('moodle-dialogue-focused');
+                  dlg.style.display = 'block';
+                });
+                document.getElementById('repo-upload').addEventListener('click', (e) => {
+                  e.preventDefault();
+                  document.getElementById('active-upload-form').style.display = 'block';
+                });
+                document.getElementById('picker-upload-btn').addEventListener('click', () => {
+                  // Fire real upload POST, then omit rendering .fp-file so the post-upload wait times out.
+                  void fetch(${JSON.stringify(`${portal}repository/repository_ajax.php?action=upload`)}, {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+                    body: 'action=upload',
+                  });
+                });
+              </script>
+            </main>`;
+        } else {
+          body = `
+            <main id="region-main">
+              <h1>Tarea con carga incompleta</h1>
+              <div class="submissionstatustable">
+                <table>
+                  <tr><th>Estado de la entrega</th><td>Todavía no se han realizado envíos</td></tr>
+                  <tr><th>Archivos enviados</th><td></td></tr>
+                </table>
+              </div>
+              <a href="?id=202&action=editsubmission">Agregar entrega</a>
+            </main>`;
+        }
+      } else {
+        body = `<a href="${portal}mod/assign/view.php?id=202">Tarea con carga incompleta</a>`;
+      }
+      await route.fulfill({
+        contentType: 'text/html; charset=utf-8',
+        body: `<body class="loggedin"><div class="usermenu"><a href="${portal}user/profile.php">Perfil</a></div>${body}</body>`,
+      });
+    });
+    return context;
+  };
+
+  const browser = new PersonalBrowser(pool, {
+    portalUrl: portal,
+    profileDir: join(root, 'profiles'),
+    accountNamespace: 'personal-upload-mutated',
+    initialAccountId: 'initial',
+    viewer: { async start() {}, async stop() {} },
+  }, { launch, loginTimeoutMs: 15000, loginPollMs: 20 });
+
+  t.after(async () => {
+    await browser.close();
+    await pool.end();
+    await admin.query('drop database ' + database);
+    await admin.end();
+    await rm(root, { recursive: true, force: true });
+  });
+
+  await browser.initialize();
+  await browser.connect(email);
+  for (let n = 0; n < 500 && (await browser.status()).state === 'connecting'; n++) await sleep(20);
+  assert.equal((await browser.status()).state, 'connected');
+
+  const pdfPath = join(root, 'stalled-draft.pdf');
+  const pdfBytes = Buffer.from('%PDF-1.4 stalled draft upload test');
+  await writeFile(pdfPath, pdfBytes, { mode: 0o600 });
+
+  const result = await browser.submit({
+    accountId: browser.current(),
+    jobId: 'upload-post-mutated-202',
+    externalId: '202',
+    activityUrl: `${portal}mod/assign/view.php?id=202`,
+    pdfId: 'pdf-202',
+    localFilePath: pdfPath,
+    originalName: 'stalled-draft.pdf',
+    sha256: createHash('sha256').update(pdfBytes).digest('hex'),
+  });
+
+  assert.equal(uploadPostHits, 1, 'Expected file-picker upload POST to reach the portal');
+  assert.equal(result.state, 'needs_verification', 'Post-upload failure must settle to needs_verification, not failed');
+});

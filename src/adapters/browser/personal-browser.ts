@@ -14,6 +14,7 @@ import { accountKey, normalizeIdentity } from './security';
 import { eraseProfile, protectedProfile, authorizedPdf } from './profiles';
 import { restorePortalCookies, savePortalCookies } from './cookies';
 import { captureAssignments, IdentityMismatch, MoodleDeliveryPage, secureContext, SessionExpired, verifyIdentity } from './moodle';
+import { sanitizeErrorDiagnostic } from '../../bootstrap/sanitize-error';
 
 export interface LoginViewer { start(): Promise<void>; stop(): Promise<void>; access?(): BrowserViewerAccess | null; }
 export interface PersonalBrowserOptions {
@@ -104,7 +105,8 @@ export class PersonalBrowser implements PersonalSession {
       this.active = account; this.identity = identity; this.state = 'connecting';
       this.login = this.loginManually();
       return this.status();
-    } catch {
+    } catch (error) {
+      console.error(`[personal-browser] connect failed: ${sanitizeErrorDiagnostic(error)}`);
       this.busy = false;
       await this.options.viewer?.stop().catch(() => undefined);
       throw new BrowserSessionError('browser_unavailable', 'No se pudo abrir el navegador de conexión.');
@@ -138,7 +140,12 @@ export class PersonalBrowser implements PersonalSession {
         }
         await sleep(this.dependencies.loginPollMs ?? 1000);
       }
-    } catch { result = this.cancelled ? 'disconnected' : 'error'; }
+    } catch (error) {
+      if (!this.cancelled) {
+        console.error(`[personal-browser] login failed: ${sanitizeErrorDiagnostic(error)}`);
+      }
+      result = this.cancelled ? 'disconnected' : 'error';
+    }
     finally {
       const saved = await this.closeContext(result === 'connected' && !this.cancelled);
       await this.options.viewer?.stop().catch(() => undefined);
@@ -199,7 +206,11 @@ export class PersonalBrowser implements PersonalSession {
     let saved = true;
     try {
       if (context && this.profile && persist) await savePortalCookies(context, this.profile, this.portal);
-    } catch { saved = false; this.state = 'error'; }
+    } catch (error) {
+      console.error(`[personal-browser] session persistence failed: ${sanitizeErrorDiagnostic(error)}`);
+      saved = false;
+      this.state = 'error';
+    }
     finally { await context?.close().catch(() => undefined); }
     return saved;
   }
@@ -226,13 +237,19 @@ export class PersonalBrowser implements PersonalSession {
             await verifyIdentity(page, this.portal, this.identity);
             return { kind: 'success', observedAccountId: this.active, assignments };
           } catch (error) {
+            if (!(error instanceof SessionExpired)) {
+              console.error(`[personal-browser] capture failed: ${sanitizeErrorDiagnostic(error)}`);
+            }
             await this.trackSessionFailure(error);
             return { kind: error instanceof SessionExpired ? 'session_expired' : 'failed' };
           }
         },
       } });
       return await fetcher.fetch(order);
-    } catch { return { kind: 'failed' }; }
+    } catch (error) {
+      console.error(`[personal-browser] capture launch failed: ${sanitizeErrorDiagnostic(error)}`);
+      return { kind: 'failed' };
+    }
     finally { await this.closeContext(); this.busy = false; }
   }
 
@@ -244,7 +261,10 @@ export class PersonalBrowser implements PersonalSession {
     if (!this.ready || this.busy || this.state !== 'connected' || order.accountId !== this.active) return denied;
     if (!verification) {
       try { await authorizedPdf({ localFilePath: order.localFilePath, originalName: order.originalName, sha256: order.sha256 }); }
-      catch { return denied; }
+      catch (error) {
+        console.error(`[personal-browser] authorized pdf check failed: ${sanitizeErrorDiagnostic(error)}`);
+        return denied;
+      }
     }
     this.busy = true;
     const proofStore = this.options.proofStore;
@@ -279,7 +299,11 @@ export class PersonalBrowser implements PersonalSession {
           { ...(captureProof ? { captureProof } : {}), alwaysCaptureProof: verification },
         );
         const track = async <T>(run: () => Promise<T>): Promise<T> => {
-          try { return await run(); } catch (error) { await this.trackSessionFailure(error); throw error; }
+          try { return await run(); } catch (error) {
+            console.error(`[personal-browser] delivery operation failed: ${sanitizeErrorDiagnostic(error)}`);
+            await this.trackSessionFailure(error);
+            throw error;
+          }
         };
         const guarded: DeliveryPageEditor = {
           inspect: () => track(() => editor.inspect()),
@@ -288,6 +312,7 @@ export class PersonalBrowser implements PersonalSession {
             await editor.attachAndSave(attachment);
           }),
           submitForGrading: () => track(() => editor.submitForGrading()),
+          hasMutated: () => editor.hasMutated(),
           close: () => editor.close(),
         };
         return { kind: 'opened' as const, page: guarded };
@@ -296,7 +321,10 @@ export class PersonalBrowser implements PersonalSession {
       const sender = new AulaVirtualSender({ portalUrl: this.portal, accountId: this.active, browser });
       result = await (verification ? sender.verify(order) : sender.submit(order));
       return result;
-    } catch { return denied; }
+    } catch (error) {
+      console.error(`[personal-browser] delivery failed: ${sanitizeErrorDiagnostic(error)}`);
+      return denied;
+    }
     finally {
       const retainedProofKey = result.evidence?.proofKey;
       for (const key of writtenProofKeys) {
